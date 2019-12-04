@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import csv
+from scipy.optimize import curve_fit
 import PARAMETERS as CON
 from pyteomics import mzml
 from datetime import datetime
@@ -8,6 +9,34 @@ from os import path
 from matplotlib import pyplot as plt
 
 
+# fit_gaussian helper function
+def gaussian_trend(x, a, sigma, mean):
+    return a * np.exp(-(x - mean) ** 2 / (2 * sigma ** 2))
+
+
+# fit_gaussian helper function
+def calculate_r_squared(x_data, y_data, *p):
+    y_predicted = gaussian_trend(x_data, *p)
+    residuals = (y_predicted - y_data) ** 2
+    ss_res = sum(residuals)
+    ss_tot = np.sum((y_data - np.mean(y_data)) ** 2)
+    r_squared = 1 - (ss_res / ss_tot)
+    r_squared = round(r_squared, 3)
+    return r_squared
+
+
+# fits a Guassian curve to ordered list parameter, returns r^2
+def fit_gaussian(y_data):
+    x_data = list(range(len(y_data)))
+    try:
+        popt, pcov = curve_fit(gaussian_trend, x_data, y_data)
+        r_squared = calculate_r_squared(x_data, y_data, *popt)
+        return r_squared
+    except RuntimeError:
+        return "N/A"
+
+
+# returns the maximum possible deuterium for a given sequence
 def sequence_to_max_deuterium(sequence: str):
     max_deuterium = len(sequence) - 1
     for letter in sequence:
@@ -16,6 +45,7 @@ def sequence_to_max_deuterium(sequence: str):
     return max_deuterium
 
 
+# Saves a plot of name "file"_"time"s.png with a given title. can be fractional or absolute
 def generate_differential_woods_plot(file: str, time: int, title: str, fractional=True):
     # Format plot
     plt.title(title)
@@ -39,6 +69,7 @@ def generate_differential_woods_plot(file: str, time: int, title: str, fractiona
     plt.savefig(plot_file_name, dpi=600)
 
 
+# Legacy woods plot
 def generate_woods_plot(file: str, time: int, is_complex: bool):
     df = pd.read_csv(file, header=[0, 1], skipinitialspace=True)
     time_col = str(time) + " min"
@@ -54,6 +85,7 @@ def generate_woods_plot(file: str, time: int, is_complex: bool):
     plt.show()
 
 
+# Checks that user PARAMETER configuration is (relatively) correct
 def check_parameters():
     if not check_extension(CON.IDENTIFICATION_MZML_FILE, "mzml"):
         print("ERROR: IDENTIFICATION_MZML_FILE must be a .mzml")
@@ -79,6 +111,7 @@ def check_parameters():
         print("WARNING: A retention tolerance of greater than 30 is recommended")
 
 
+# helper function for check_parameters()
 def check_extension(string, extension):
     if string[-len(extension):].lower() != extension:
         return False
@@ -211,7 +244,6 @@ def set_retention_times(file: str):
             if i["ms level"] == 2:
                 retention_scan_dictionary[i["index"] + 1] = (float(i["scanList"]["scan"][0]["scan start time"])
                                                              * CON.MINUTES_TO_SECONDS)
-
     return retention_scan_dictionary
 
 
@@ -258,6 +290,7 @@ class FullExperiment:
             uptakes.append(pep.get_mass_shift())
         self.runs[time][complexity][replication] = uptakes
 
+    # Contains multiple subroutines that generate each type of output
     def generate_output(self):
         print("")
         print("Generating Output file(s)")
@@ -342,8 +375,9 @@ class FullExperiment:
         # TODO Add Second Output
 
         # Generates a Wood's plot for each time-point
-        for time in self._time_points:
-            generate_differential_woods_plot(CON.SUMMARY_TABLE_1, time, "Differential Woods' Plot")
+        if self._is_differential:
+            for time in self._time_points:
+                generate_differential_woods_plot(CON.SUMMARY_TABLE_1, time, "Differential Woods' Plot")
 
 
 ##########################################################################
@@ -462,8 +496,6 @@ class ExperimentalRun:
 
     # outputs a .csv that has the data for a TIC scatter plot
     def generate_total_ion_chromatogram(self):
-        # TODO Modify how windows are selected
-        # TODO Use windows to generate retention time peptide was found.
         mass_ratio = float(input("Enter desired m/z ratio: "))
         tolerance = float(input("Enter m/z tolerance: "))
         start_time = datetime.now()
@@ -498,11 +530,13 @@ class ExperimentalRun:
             pep_mass = pep_mass_over_charge * charge
 
             tuple_list = []
+            # collects windows that match the rt of the sequence to user tolerance
             for rt, tup_list in tuple_dictionary.items():
                 if start <= rt[0] <= end or start <= rt[1] <= end:
                     tuple_list.extend(tup_list)
             tuple_list.sort(key=lambda x: x[0])
 
+            # searches for a match for each deuteration
             for det in range(pep.get_max_deuterium() + 1):
                 ppm_error, mz, intensity = compare(pep_mass + det * CON.DEUTERIUM_MASS,
                                                    charge, tuple_list, tuple_list)
@@ -515,7 +549,7 @@ class ExperimentalRun:
         complexity = "Free"
         if self._complexity:
             complexity = "Complex"
-        file = CON.FULL_HDX_OUTPUT + "_" + str(self._time) + "s_" + str(complexity) + "_" + str(self._run) + ".csv"
+        file = CON.FULL_HDX_OUTPUT + "_" + str(self._time) + "s_" + str(complexity) + "_" + str(self._run + 1) + ".csv"
         self.write_hdx(file)
         # self.write_table(CON.SUMMARY_HDX_OUTPUT)
 
@@ -527,7 +561,7 @@ class ExperimentalRun:
             csv_writer = csv.writer(f)
             if not output_exists:
                 header = ["Start", "End", "Sequence", "Charge", "SequenceMz", "Complex",
-                          "Deuterium", "RT", "Mz", "Intensity", "PpmError", "Average"]
+                          "Deuterium", "RT", "Mz", "Intensity", "PpmError", "Average", "Gaussian Fit"]
                 csv_writer.writerow(header)
             lines = []
             for pep in self.peptides:
@@ -580,6 +614,7 @@ class Peptide:
         self._start, self._end = find_start_end(self._sequence, self._protein)
         if self._start == "NULL":
             print(self._sequence)
+        self._fit = 0  # Gaussian fit
 
     # Getters
     def get_mass_shift(self):
@@ -617,8 +652,9 @@ class Peptide:
         line_list = []
 
         for i in range(self.get_max_deuterium() + 1):
+            self.set_fit()
             mz, intensity, ppm = self.get_deuterium(i)
-            line = ["", "", "", 0, 0, "", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+            line = ["", "", "", 0, 0, "", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
             line[0] = self._start
             line[1] = self._end
             line[2] = self._sequence
@@ -631,6 +667,7 @@ class Peptide:
             line[9] = intensity
             line[10] = ppm
             line[11] = self._weighted_mass
+            line[12] = self._fit
             line_list.append(line)
         return line_list
 
@@ -656,6 +693,13 @@ class Peptide:
         return mz, intensity, ppm
 
     # Setters
+    def set_fit(self):
+        intensities = []
+        for key in self._deuterium_dictionary.keys():
+            intensities.append(self._deuterium_dictionary[key]["intensity"])
+        self._fit = fit_gaussian(intensities)
+        print("The fit for:", intensities, "is", self._fit)
+
     def set_windows(self, window):
         self._windows.append(window)
 

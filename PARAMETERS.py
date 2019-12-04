@@ -1,20 +1,20 @@
 # Input Files
-IDENTIFICATION_MZML_FILE = "C:\\Users\\Tom\\PycharmProjects\\DeuteriumCalculator\\ParE\\20190501_MLF_HDX_ParE_ID.mzML"  # must be .mzML
-IDENTIFICATION_CSV_FILE = "C:\\Users\\Tom\\PycharmProjects\\DeuteriumCalculator\\ParE\\Identification\\PARE Input.csv"  # Must be .csv
-PROTEIN_SEQUENCE_FILE = "C:\\Users\\Tom\\PycharmProjects\\DeuteriumCalculator\\ParE\\Identification\\ParE.txt"  # Must be .txt
+IDENTIFICATION_MZML_FILE = "C:\\Users\\Tom\\PycharmProjects\\TheDeuteriumCalculator\\mzMLFiles\\IDRun.mzML"  # must be .mzML
+IDENTIFICATION_CSV_FILE = "C:\\Users\\Tom\\PycharmProjects\\DeuteriumCalculator\\Input.csv"  # Must be .csv
+PROTEIN_SEQUENCE_FILE = "C:\\Users\\Tom\\PycharmProjects\\TheDeuteriumCalculator\\Protein.txt"  # Must be .txt
 
 # Output Files
 FULL_HDX_OUTPUT = "HdxOutput"  # no file extension
 SUMMARY_HDX_OUTPUT = "OutputTable.csv"  # Must be .csv
-SUMMARY_TABLE_1 = "Summary_Table_1_ParE.csv"  # Must be .csv
-SUMMARY_TABLE_2 = "Summary_Table_2_ParE.csv"  # Must be .csv
+SUMMARY_TABLE_1 = "Summary_Table_1.csv"  # Must be .csv
+SUMMARY_TABLE_2 = "Summary_Table_2.csv"  # Must be .csv
 
 # Output Figures
 WOODS_PLOT_NAME = "WoodsPlot"  # no file extension
 
 # Parameters (Can be changed, defaults given in parenthesis)
 NOISE_LIMIT = 10000  # All individual peaks with less than this intensity ignored (10000)
-PPM_MATCH_TOLERANCE = 25  # Peaks with less difference than this value matched to sequence (10)
+PPM_MATCH_TOLERANCE = 10  # Peaks with less difference than this value matched to sequence (10)
 SLIDING_WINDOW_PPM_TOLERANCE = 1  # Peaks with less difference than this value combined within each sliding window (1)
 SLIDING_WINDOW_SIZE = 30  # width of sliding window in seconds, should be integer divisible by SLIDE_FRACTION (60)
 SLIDE_FRACTION = 3  # Fraction of the window that the window moves each each slide (3)
