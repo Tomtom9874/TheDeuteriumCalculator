@@ -36,7 +36,7 @@ In the second are parameters you can change to tune your results. In detail thes
 ***
 _**Modify the constants with care, this can lead to incorrect evaluation.**_
 ***
-##Running Software
+## Running Software
 
 In the command prompt navigate to the folder containing the program and associated files. This can be done by repeatedly typing "cd" followed by a space and the folder you wish to enter. Then type run the program by typing "python ReadMzml.py"
 

@@ -60,14 +60,16 @@ def check_parameters():
     if not check_extension(CON.RECOMMENDATION_TABLE_1, "csv"):
         print("ERROR: SUMMARY_TABLE_1 must be a .csv")
     if CON.PPM_MATCH_TOLERANCE > 100:
-        print("WARNING: PPM_MATCH_TOLERANCE is set to {}, this is high".format(CON.PPM_MATCH_TOLERANCE))
+        print("WARNING: PPM_MATCH_TOLERANCE is set to {}, "
+              "this is high".format(CON.PPM_MATCH_TOLERANCE))
     if CON.SLIDING_WINDOW_PPM_TOLERANCE > 10:
         print("WARNING: SLIDING_WINDOW_PPM_TOLERANCE is set to {}, "
               "recommendation is under 10.".format(CON.SLIDING_WINDOW_PPM_TOLERANCE))
     if CON.SLIDING_WINDOW_SIZE % CON.SLIDE_AMOUNT != 0:
         print("ERROR: SLIDING_WINDOW_SIZE must be divisible by SLIDE_AMOUNT")
     if CON.RETENTION_TOLERANCE <= 0:
-        print("ERROR: RETENTION_TOLERANCE must be a positive number, greater than 30 recommended.")
+        print("ERROR: RETENTION_TOLERANCE must be a positive number, "
+              "greater than 30 recommended.")
     if CON.RETENTION_TOLERANCE < 30:
         print("WARNING: A retention tolerance of greater than 30 is recommended")
     if not 0 < CON.WOODS_PLOT_CONFIDENCE < 1:
@@ -147,8 +149,10 @@ def tuple_combine(some_list):
             if just_changed:
                 just_changed = False
                 continue
-            if abs(get_ppm(start_list[i][0], start_list[i+1][0])) < CON.SLIDING_WINDOW_PPM_TOLERANCE:
-                new_list.append((((start_list[i][0] + start_list[i+1][0]) / 2), start_list[i][1] + start_list[i+1][1]))
+            ppm = abs(get_ppm(start_list[i][0], start_list[i+1][0]))
+            if ppm < CON.SLIDING_WINDOW_PPM_TOLERANCE:
+                new_list.append((((start_list[i][0] + start_list[i+1][0]) / 2),
+                                 start_list[i][1] + start_list[i+1][1]))
                 changed = True
                 just_changed = True
             else:
@@ -164,26 +168,24 @@ def tuple_combine(some_list):
 # Modified binary search which returns the highest-intensity peak within a ppm tolerance
 def compare(target, charge, array, full_array):
     midpoint = int(len(array) / 2)
-
     if abs(get_ppm(target, array[midpoint][0] * charge)) <= CON.PPM_MATCH_TOLERANCE:
         return_list = [(array[midpoint][0], array[midpoint][1])]
         offset = 1
-
         while offset != 0 and (midpoint - offset) > 0:
-            if abs(get_ppm(target, array[midpoint - offset][0] * charge)) <= CON.PPM_MATCH_TOLERANCE:
+            ppm = abs(get_ppm(target, array[midpoint + offset][0] * charge))
+            if ppm <= CON.PPM_MATCH_TOLERANCE:
                 return_list.append((array[midpoint - offset][0], array[midpoint - offset][1]))
                 offset += 1
             else:
                 offset = 0
-
         offset = 1
         while offset != 0 and (midpoint + offset < len(array)):
-            if abs(get_ppm(target, array[midpoint + offset][0] * charge)) <= CON.PPM_MATCH_TOLERANCE:
+            ppm = abs(get_ppm(target, array[midpoint + offset][0] * charge))
+            if ppm <= CON.PPM_MATCH_TOLERANCE:
                 return_list.append((array[midpoint + offset][0], array[midpoint + offset][1]))
                 offset += 1
             else:
                 offset = 0
-
         high_intensity = (0, 0)
         for key, value in return_list:
             if value > high_intensity[1]:
@@ -204,14 +206,14 @@ def compare(target, charge, array, full_array):
 def set_retention_times(file: str):
     retention_scan_dictionary = {}
     with mzml.read(file) as f:
-        for i in f:
-            if i["ms level"] == 2:
-                retention_scan_dictionary[i["index"] + 1] = (float(i["scanList"]["scan"][0]["scan start time"])
-                                                             * CON.MINUTES_TO_SECONDS)
+        for scan in f:
+            if scan["ms level"] == 2:
+                scan_time = float(scan["scanList"]["scan"][0]["scan start time"])
+                retention_scan_dictionary[scan["index"] + 1] = scan_time * CON.MINUTES_TO_SECONDS
     return retention_scan_dictionary
 
 
-###################################################################################################
+#################################################################################################
 class FullExperiment:
 
     def __init__(self, time_points: list, differential: bool, replications: int):
@@ -230,6 +232,26 @@ class FullExperiment:
             self.fractional_deviations_by_time[time] = []
         self.protein = parse_protein(CON.PROTEIN_SEQUENCE_FILE)
 
+    def add_runs(self, time):
+        count = 0
+        for replication in range(self._num_replicates):
+            self.add_run(time, False, replication, count)
+            count += 1
+        if self._is_differential:
+            for replication in range(self._num_replicates):
+                self.add_run(time, True, replication, count)
+                count += 1
+
+    def add_file_names(self):
+        for time in self._time_points:
+            complexity = False
+            for replication in range(self._num_replicates):
+                self.add_file(time, complexity, replication)
+            if self._is_differential:
+                complexity = True
+                for replication in range(self._num_replicates):
+                    self.add_file(time, complexity, replication)
+
     def get_file(self, index: int):
         return self._file_names[index]
 
@@ -243,7 +265,8 @@ class FullExperiment:
         complexity = "Free"
         if is_complex:
             complexity = "Complex"
-        print("Enter path to mzML for time:", time, "replication:", replication + 1, "complexity:", complexity)
+        print("Enter path to mzML for time:", time, "replication:",
+              replication + 1, "complexity:", complexity)
         file = ""
         while not path.exists(file):
             file = get_path_input()
@@ -429,7 +452,8 @@ class ExperimentalRun:
                 tuple_list.append((scan["m/z array"][j], scan["intensity array"][j]))
         self.all_peaks.append({"retention time": retention_time, "tuple list": tuple_list})
 
-    # creates a dictionary for each scan with the RT and a list with tuples containing the m/z and intensity
+    # creates a dictionary for each scan with the RT and a
+    # list with tuples containing the m/z and intensity
     def read_mzml(self, file: str):
         total = 0
         print("(initializing)")
@@ -442,7 +466,8 @@ class ExperimentalRun:
         with mzml.read(file) as f:
             for scan in f:
                 if scan["ms level"] == 1:
-                    retention_time = scan["scanList"]["scan"][0]["scan start time"] * CON.MINUTES_TO_SECONDS
+                    retention_time = scan["scanList"]["scan"][0]["scan start time"]
+                    retention_time *= CON.MINUTES_TO_SECONDS
                     count += 1
                     if count % 200 == 0 or count == 1 or count == total:
                         print(count, "/", total)
@@ -544,7 +569,8 @@ class ExperimentalRun:
         complexity = "Free"
         if self._complexity:
             complexity = "Complex"
-        file = CON.FULL_HDX_OUTPUT + "_" + str(self._time) + "s_" + str(complexity) + "_" + str(self._run + 1) + ".csv"
+        file = (CON.FULL_HDX_OUTPUT + "_" + str(self._time) + "s_"
+                + str(complexity) + "_" + str(self._run + 1) + ".csv")
         self.write_hdx(file)
 
     # outputs tabular info of HDX results to .csv
@@ -555,7 +581,8 @@ class ExperimentalRun:
             csv_writer = csv.writer(f)
             if not output_exists:
                 header = ["Start", "End", "Sequence", "Charge", "SequenceMz", "Complex",
-                          "Deuterium", "RT", "Mz", "Intensity", "PpmError", "Average", "Gaussian Fit"]
+                          "Deuterium", "RT", "Mz", "Intensity", "PpmError", "Average",
+                          "Gaussian Fit"]
                 csv_writer.writerow(header)
             lines = []
             for pep in self.peptides:
@@ -578,7 +605,7 @@ class Peptide:
         self._rt_start = 0
         self._rt_end = float("inf")
         self._scan = scan
-        self._weighted_mass = 0
+        self._weighted_mass_to_charge = 0
         self._deuterium_dictionary = {}
         self._mass_shift = 0
         self.max_deuterium = sequence_to_max_deuterium(self._sequence)
@@ -600,7 +627,7 @@ class Peptide:
         return self._mass_shift
 
     def get_weighted_mass(self):
-        return self._weighted_mass
+        return self._weighted_mass_to_charge
 
     def get_average_mass(self):
         return self._average_mass
@@ -645,7 +672,7 @@ class Peptide:
             line[8] = mz
             line[9] = intensity
             line[10] = ppm
-            line[11] = self._weighted_mass
+            line[11] = self._weighted_mass_to_charge
             line[12] = self._fit
             line_list.append(line)
         return line_list
@@ -701,10 +728,11 @@ class Peptide:
             mass = 0
         else:
             mass /= total_intensity
-        self._weighted_mass = mass
-        if self._weighted_mass == 0:
+        self._weighted_mass_to_charge = mass
+        if self._weighted_mass_to_charge == 0:
             print("No matches found for:", self._sequence)
-        self._mass_shift = (self._weighted_mass - CON.MASS_OF_HYDROGEN) * self._charge - self._average_mass
+        weighted_mass = self._weighted_mass_to_charge - CON.MASS_OF_HYDROGEN
+        self._mass_shift = weighted_mass * self._charge - self._average_mass
 
     # calculates the average mass from the sequence (Uses values in the PARAMETERS.py file)
     def set_average_mass(self):
@@ -716,6 +744,7 @@ class Peptide:
 
 
 def main():
+    # TODO refactor main()
     start_time = datetime.now()
     check_parameters()
 
@@ -753,30 +782,10 @@ def main():
         if num_replications < 1:
             print("Please enter a positive integer.")
 
-    experiment = FullExperiment(time_points=time_points, differential=is_differential, replications=num_replications)
-
-    # Gets all file names
+    experiment = FullExperiment(time_points, is_differential, num_replications)
+    experiment.add_file_names()
     for time in time_points:
-        complexity = False
-        for replication in range(num_replications):
-            experiment.add_file(time, complexity, replication)
-        if is_differential:
-            complexity = True
-            for replication in range(num_replications):
-                experiment.add_file(time, complexity, replication)
-
-    # Adds each run
-    count = 0
-    for time in time_points:
-        complexity = False
-        for replication in range(num_replications):
-            experiment.add_run(time, complexity, replication, count)
-            count += 1
-        if is_differential:
-            complexity = True
-            for replication in range(num_replications):
-                experiment.add_run(time, complexity, replication, count)
-                count += 1
+        experiment.add_runs(time)
     experiment.generate_output()
 
     print("Total Time Elapsed:", datetime.now() - start_time)
