@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import csv
 from scipy.optimize import curve_fit
+from scipy import stats
 import PARAMETERS as CON
 from pyteomics import mzml
 from datetime import datetime
@@ -43,30 +44,6 @@ def sequence_to_max_deuterium(sequence: str):
         if letter.lower() == 'p':
             max_deuterium -= 1
     return max_deuterium
-
-
-# Saves a plot of name "file"_"time"s.png with a given title. can be fractional or absolute
-def generate_differential_woods_plot(file: str, time: int, title: str, fractional=True):
-    # Format plot
-    plt.title(title)
-    plt.xlabel("Quasi-Sequence")
-    plt.ylabel("Relative Uptake (Da)")
-    if fractional:
-        plt.ylabel("Relative Fractional Uptake")
-    plt.plot((0, 95), (0, 0), 'k:')
-
-    df = pd.read_csv(file, header=[0, 1])
-    time_col = str(time) + " min"
-    for _, row in df.iterrows():
-        x = (row["Start"]["Start"], row["End"]["End"])
-        difference = row["Uptake COMPLEX (D)"][time_col] - row["Uptake FREE (D)"][time_col]
-        if fractional:
-            difference /= sequence_to_max_deuterium(row['Sequence']['Sequence'])
-        y = (difference, difference)
-        if abs(difference) < 10:
-            plt.plot(x, y, 'k')
-    plot_file_name = CON.WOODS_PLOT_NAME + "_" + str(time) + "s.png"
-    plt.savefig(plot_file_name, dpi=600)
 
 
 # Legacy woods plot
@@ -259,16 +236,27 @@ class FullExperiment:
         for time in self._time_points:
             self.runs[time] = {True: {}, False: {}}
         self._file_names = []
+        self.deviations_by_time = {}
+        self.fractional_deviations_by_time = {}
+        for time in self._time_points:
+            self.deviations_by_time[time] = []
+            self.fractional_deviations_by_time[time] = []
+        self.protein = parse_protein(CON.PROTEIN_SEQUENCE_FILE)
 
     def get_file(self, index: int):
         return self._file_names[index]
 
+    def add_deviation(self, time, deviation, pep):
+        if pep.get_mass_shift() > 0:
+            self.deviations_by_time[time].append(deviation)
+            self.fractional_deviations_by_time[time].append(deviation / pep.get_max_deuterium())
+
     # adds the name of each file to the list
-    def add_file(self, time, complexity: bool, replication):
-        complexness = "Free"
-        if complexity:
-            complexness = "Complex"
-        print("Enter path to mzML for time:", time, "replication:", replication + 1, "complexity:", complexness)
+    def add_file(self, time, is_complex: bool, replication):
+        complexity = "Free"
+        if is_complex:
+            complexity = "Complex"
+        print("Enter path to mzML for time:", time, "replication:", replication + 1, "complexity:", complexity)
         file = ""
         while not path.exists(file):
             file = get_path_input()
@@ -332,6 +320,7 @@ class FullExperiment:
 
         peptide_lines = []
         # Each loop generates one line
+
         for index, pep in enumerate(self._peptides):
             peptide = [pep.get_start(), pep.get_end(), pep.get_sequence(), pep.get_average_mass()]
             start, end = pep.get_rt_start_end()
@@ -340,14 +329,17 @@ class FullExperiment:
             averages = []
             deviations = []
             # Free portion
+
             for time in self._time_points:
                 replications = []
                 for replication in range(self._num_replicates):
                     replications.append(self.runs[time][False][replication][index])
                 average = sum(replications) / self._num_replicates
                 averages.append(average)
-                deviation = np.std(replications)
+                deviation = np.std(replications, ddof=1)
+                self.add_deviation(time, deviation, pep)
                 deviations.append(deviation)
+
             # Complex Portion
             if self._is_differential:
                 for time in self._time_points:
@@ -356,7 +348,8 @@ class FullExperiment:
                         replications.append(self.runs[time][True][replication][index])
                     average = sum(replications) / self._num_replicates
                     averages.append(average)
-                    deviation = np.std(replications)
+                    deviation = np.std(replications, ddof=1)
+                    self.add_deviation(time, deviation, pep)
                     deviations.append(deviation)
             peptide.extend(averages)
             peptide.extend(deviations)
@@ -376,8 +369,59 @@ class FullExperiment:
 
         # Generates a Wood's plot for each time-point
         if self._is_differential:
-            for time in self._time_points:
-                generate_differential_woods_plot(CON.SUMMARY_TABLE_1, time, "Differential Woods' Plot")
+            self.generate_differential_woods_plot(CON.SUMMARY_TABLE_1, "Differential Woods' Plot", True)
+
+    # confidence is between 0 and 1, df is
+    def calculate_confidence_limit(self, time, fractional):
+        df = (self._num_replicates * 2) - 1
+        # TODO stdev is wayy to high for fractional data...
+        if fractional:
+            deviations = self.fractional_deviations_by_time[time]
+        else:
+            deviations = self.deviations_by_time[time]
+
+        if not deviations:
+            raise ValueError("add deviations before calculating confidence limit.")
+
+        if not 0 < CON.WOODS_PLOT_CONFIDENCE < 1:
+            print("confidence should be between 0 and 1")
+            raise ValueError
+        stdev = sum(deviations) / len(deviations)
+        alpha = 1 - CON.WOODS_PLOT_CONFIDENCE
+        critical_value = stats.t.ppf(1 - (alpha / 2), df)
+        print("Stdev:", stdev, "replications:", self._num_replicates * 2, "critical v.:", critical_value)
+        return stdev / ((self._num_replicates * 2) ** 0.5) * critical_value
+
+    # Saves a plot of name "file"_"time"s.png with a given title. can be fractional or absolute
+    def generate_differential_woods_plot(self, file: str, title: str, fractional=True):
+        # Format plot
+        plt.title(title)
+        plt.xlabel("Sequence")
+        plt.ylabel("Relative Uptake (Da)")
+        for time in self._time_points:
+            if fractional:
+                plt.ylabel("Relative Fractional Uptake")
+            confidence = self.calculate_confidence_limit(time, fractional)  # ######################
+            print("Confidence:", confidence)
+            plt.plot((0, len(self.protein)), (0, 0), 'k:')
+            plt.plot((0, len(self.protein)), (confidence, confidence), 'r--')
+            plt.plot((0, len(self.protein)), (-confidence, -confidence), 'r--')
+            df = pd.read_csv(file, header=[0, 1])
+            time_col = str(time) + " min"
+            for _, row in df.iterrows():
+                x = (row["Start"]["Start"], row["End"]["End"])
+                difference = row["Uptake COMPLEX (D)"][time_col] - row["Uptake FREE (D)"][time_col]
+                if fractional:
+                    difference /= sequence_to_max_deuterium(row['Sequence']['Sequence'])
+                y = (difference, difference)
+                if abs(difference) < 10:
+                    plt.plot(x, y, 'k')
+            plot_file_name = CON.WOODS_PLOT_NAME + "_" + str(time) + "s.png"
+            plt.savefig(plot_file_name, dpi=600)
+
+    def coverage_calculator(self):
+        pass
+        # TODO Implement coverage calculator
 
 
 ##########################################################################
@@ -602,10 +646,7 @@ class Peptide:
         self._weighted_mass = 0
         self._deuterium_dictionary = {}
         self._mass_shift = 0
-        # Set max deuterium
-
         self.max_deuterium = sequence_to_max_deuterium(self._sequence)
-
         for det in range(self.max_deuterium + 1):
             self._deuterium_dictionary[det] = {"m/z": 0, "intensity": 0, "ppm": 0}
         self._average_mass = 0
@@ -617,6 +658,9 @@ class Peptide:
         self._fit = 0  # Gaussian fit
 
     # Getters
+    def get_fit(self):
+        return self._fit
+
     def get_mass_shift(self):
         return self._mass_shift
 
@@ -650,9 +694,9 @@ class Peptide:
     # returns peptide data for the detailed output
     def get_rows(self, complexity: str):
         line_list = []
-
+        self.set_fit()
         for i in range(self.get_max_deuterium() + 1):
-            self.set_fit()
+
             mz, intensity, ppm = self.get_deuterium(i)
             line = ["", "", "", 0, 0, "", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
             line[0] = self._start
@@ -698,7 +742,6 @@ class Peptide:
         for key in self._deuterium_dictionary.keys():
             intensities.append(self._deuterium_dictionary[key]["intensity"])
         self._fit = fit_gaussian(intensities)
-        print("The fit for:", intensities, "is", self._fit)
 
     def set_windows(self, window):
         self._windows.append(window)

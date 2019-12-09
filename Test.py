@@ -1,10 +1,8 @@
 
-
 def main():
-    dic = {"a": "apple", "b": "banana"}
-    for key, value, in dic.items():
-        print("key", key, "val", value)
-
+    my_list = [10]
+    if my_list:
+        print("not empty")
 
 if __name__ == '__main__':
     main()

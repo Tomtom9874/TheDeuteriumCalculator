@@ -1,7 +1,7 @@
 # Input Files
-IDENTIFICATION_MZML_FILE = "C:\\Users\\Tom\\PycharmProjects\\TheDeuteriumCalculator\\mzMLFiles\\IDRun.mzML"  # must be .mzML
-IDENTIFICATION_CSV_FILE = "C:\\Users\\Tom\\PycharmProjects\\DeuteriumCalculator\\Input.csv"  # Must be .csv
-PROTEIN_SEQUENCE_FILE = "C:\\Users\\Tom\\PycharmProjects\\TheDeuteriumCalculator\\Protein.txt"  # Must be .txt
+IDENTIFICATION_MZML_FILE = r"C:\Users\Tom\PycharmProjects\TheDeuteriumCalculator\ParE\20190501_MLF_HDX_ParE_ID.mzML"  # must be .mzML
+IDENTIFICATION_CSV_FILE = r"C:\Users\Tom\PycharmProjects\TheDeuteriumCalculator\ParE\Identification\PARE Input.csv"  # Must be .csv
+PROTEIN_SEQUENCE_FILE = r"C:\Users\Tom\PycharmProjects\TheDeuteriumCalculator\ParE\Identification\ParE.txt"  # Must be .txt
 
 # Output Files
 FULL_HDX_OUTPUT = "HdxOutput"  # no file extension
@@ -10,7 +10,7 @@ SUMMARY_TABLE_1 = "Summary_Table_1.csv"  # Must be .csv
 SUMMARY_TABLE_2 = "Summary_Table_2.csv"  # Must be .csv
 
 # Output Figures
-WOODS_PLOT_NAME = "WoodsPlot"  # no file extension
+WOODS_PLOT_NAME = "WoodsPlot_PARE"  # no file extension
 
 # Parameters (Can be changed, defaults given in parenthesis)
 NOISE_LIMIT = 10000  # All individual peaks with less than this intensity ignored (10000)
