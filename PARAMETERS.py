@@ -1,16 +1,16 @@
 # Input Files
-IDENTIFICATION_MZML_FILE = "C:\\Users\\Tom\\PycharmProjects\\TheDeuteriumCalculator\\mzMLFiles\\IDRun.mzML"  # must be .mzML
-IDENTIFICATION_CSV_FILE = "C:\\Users\\Tom\\PycharmProjects\\DeuteriumCalculator\\Input.csv"  # Must be .csv
-PROTEIN_SEQUENCE_FILE = "C:\\Users\\Tom\\PycharmProjects\\TheDeuteriumCalculator\\Protein.txt"  # Must be .txt
+IDENTIFICATION_MZML_FILE = r"C:\Users\Tom\PycharmProjects\TheDeuteriumCalculator\\mzMLFiles\IDRun.mzML"  # must be .mzML
+IDENTIFICATION_CSV_FILE = r"C:\Users\Tom\PycharmProjects\DeuteriumCalculator\Input.csv"  # Must be .csv
+PROTEIN_SEQUENCE_FILE = r"C:\Users\Tom\PycharmProjects\TheDeuteriumCalculator\Protein.txt"  # Must be .txt
 
 # Output Files
-FULL_HDX_OUTPUT = "HdxOutput"  # no file extension
-SUMMARY_HDX_OUTPUT = "OutputTable.csv"  # Must be .csv
-SUMMARY_TABLE_1 = "Summary_Table_1.csv"  # Must be .csv
-SUMMARY_TABLE_2 = "Summary_Table_2.csv"  # Must be .csv
+FULL_HDX_OUTPUT = r"Outputs\HdxOutput"  # no file extension
+RECOMMENDATION_TABLE_1 = r"Outputs\Recommendation_Table_1.csv"  # Must be .csv
+RECOMMENDATION_TABLE_2 = r"Outputs\Recommendation_Table_2.csv"  # Must be .csv
 
 # Output Figures
-WOODS_PLOT_NAME = "WoodsPlot"  # no file extension
+WOODS_PLOT_NAME = r"Outputs\WoodsPlot"  # no file extension
+WOODS_PLOT_TITLE = r"Outputs\Differential Fractional Uptake Woods' Plot"  # Title on the woods' plot
 
 # Parameters (Can be changed, defaults given in parenthesis)
 NOISE_LIMIT = 10000  # All individual peaks with less than this intensity ignored (10000)

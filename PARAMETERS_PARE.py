@@ -6,11 +6,11 @@ PROTEIN_SEQUENCE_FILE = r"C:\Users\Tom\PycharmProjects\TheDeuteriumCalculator\Pa
 # Output Files
 FULL_HDX_OUTPUT = "HdxOutput"  # no file extension
 SUMMARY_HDX_OUTPUT = "OutputTable.csv"  # Must be .csv
-SUMMARY_TABLE_1 = "Summary_Table_1.csv"  # Must be .csv
-SUMMARY_TABLE_2 = "Summary_Table_2.csv"  # Must be .csv
+RECOMMENDATION_TABLE_1 = "Recommendation_Table_1.csv"  # Must be .csv
+RECOMMENDATION_TABLE_2 = "Recommendation_Table_2.csv"  # Must be .csv
 
 # Output Figures
-WOODS_PLOT_NAME = "WoodsPlot_PARE"  # no file extension
+WOODS_PLOT_FILE = "WoodsPlot_PARE"  # no file extension
 
 # Parameters (Can be changed, defaults given in parenthesis)
 NOISE_LIMIT = 10000  # All individual peaks with less than this intensity ignored (10000)

@@ -1,6 +1,6 @@
-#README
+# README
 ***
-##Python Installation
+## Python Installation
 Head over to <a href="https://www.python.org/downloads/">Python.org</a> to install Python. Currently the supported version is: 3.7.5.
 
 The only change to the settings you need to make is checking the box which adds Python to the Path.
@@ -11,7 +11,7 @@ Packages are premade code usable by other software. This program depends on a nu
 
 _**note: there are no numbers, any "l" character is the letter. It is recommended to copy paste the above line directly.**_
 
-##Preparation
+## Preparation
 ***
 Open the file named _**Parameters.py**_ or _**Parameters**_. This file is divided into three sections.
 

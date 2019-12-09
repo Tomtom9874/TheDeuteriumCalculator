@@ -46,22 +46,6 @@ def sequence_to_max_deuterium(sequence: str):
     return max_deuterium
 
 
-# Legacy woods plot
-def generate_woods_plot(file: str, time: int, is_complex: bool):
-    df = pd.read_csv(file, header=[0, 1], skipinitialspace=True)
-    time_col = str(time) + " min"
-    if is_complex:
-        complexity_col = "Uptake COMPLEX (D)"
-    else:
-        complexity_col = "Uptake FREE (D)"
-    for index, row in df.iterrows():
-        x = (row["Start"]["Start"], row["End"]["End"])
-        y = (row[complexity_col][time_col], row[complexity_col][time_col])
-        if y[0] > -100:
-            plt.plot(x, y, 'k')
-    plt.show()
-
-
 # Checks that user PARAMETER configuration is (relatively) correct
 def check_parameters():
     if not check_extension(CON.IDENTIFICATION_MZML_FILE, "mzml"):
@@ -73,7 +57,7 @@ def check_parameters():
     for letter in CON.FULL_HDX_OUTPUT:
         if letter == '.':
             print("ERROR: FULL_HDX_OUTPUT should not have file extension")
-    if not check_extension(CON.SUMMARY_TABLE_1, "csv"):
+    if not check_extension(CON.RECOMMENDATION_TABLE_1, "csv"):
         print("ERROR: SUMMARY_TABLE_1 must be a .csv")
     if CON.PPM_MATCH_TOLERANCE > 100:
         print("WARNING: PPM_MATCH_TOLERANCE is set to {}, this is high".format(CON.PPM_MATCH_TOLERANCE))
@@ -86,6 +70,9 @@ def check_parameters():
         print("ERROR: RETENTION_TOLERANCE must be a positive number, greater than 30 recommended.")
     if CON.RETENTION_TOLERANCE < 30:
         print("WARNING: A retention tolerance of greater than 30 is recommended")
+    if not 0 < CON.WOODS_PLOT_CONFIDENCE < 1:
+        print("confidence should be between 0 and 1")
+        raise ValueError
 
 
 # helper function for check_parameters()
@@ -131,7 +118,7 @@ def find_start_end(peptide: str, protein: str):
     return "NULL", "NULL"
 
 
-# Removes any non-alpha characters form the protein sequence
+# Removes any non-alpha characters from the protein sequence
 def parse_protein(file: str):
     sequence = ""
     with open(file, 'r') as f:
@@ -148,7 +135,7 @@ def get_ppm(mz1, mz2):
     return abs(mz1 - mz2) / mz1 * 1000000
 
 
-# Takes i0n a list of tuples and combines all where first elements is within a ppm tolerance
+# Takes in a list of tuples and combines each where first elements is within a ppm tolerance
 def tuple_combine(some_list):
     changed = True
     just_changed = False
@@ -278,49 +265,37 @@ class FullExperiment:
             uptakes.append(pep.get_mass_shift())
         self.runs[time][complexity][replication] = uptakes
 
+    def update_headers(self, top_header, bottom_header, header_name):
+        top_header.append(header_name)
+        for time in self._time_points:
+            bottom_header.append(str(time) + " min")
+            top_header.append("")
+        top_header.pop()
     # Contains multiple subroutines that generate each type of output
-    def generate_output(self):
-        print("")
-        print("Generating Output file(s)")
 
-        ############################
-        # Generates Summary Output 1
+    def average_replications(self, averages, deviations, pep, index, complexity):
+        # TODO may need to be rearranged to support multiple time points
+        for time in self._time_points:
+            replications = []
+            for replication in range(self._num_replicates):
+                replications.append(self.runs[time][complexity][replication][index])
+            average = sum(replications) / self._num_replicates
+            averages.append(average)
+            deviation = np.std(replications, ddof=1)
+            self.add_deviation(time, deviation, pep)
+            deviations.append(deviation)
+
+    def generate_recommendation_table_1(self):
         top_header = ["Start", "End", "Sequence", "Peptide mass (Da)", "Retention time (min)"]
-        header = ["Start", "End", "Sequence", "Peptide mass (Da)", "Retention time (min)"]
-
-        # Free Average
-        top_header.append("Uptake FREE (D)")
-        for time in self._time_points:
-            header.append(str(time) + " min")
-            top_header.append("")
-        top_header.pop()
-
-        # Complex Average
+        bot_header = ["Start", "End", "Sequence", "Peptide mass (Da)", "Retention time (min)"]
+        self.update_headers(top_header, bot_header, "Uptake FREE (D)")
         if self._is_differential:
-            top_header.append("Uptake COMPLEX (D)")
-            for time in self._time_points:
-                header.append(str(time) + " min")
-                top_header.append("")
-            top_header.pop()
-
-        # Free Deviation
-        top_header.append("Uptake error (SD) - Free (D)")
-        for time in self._time_points:
-            header.append(str(time) + " min")
-            top_header.append("")
-        top_header.pop()
-
-        # Complex Deviation
+            self.update_headers(top_header, bot_header, "Uptake COMPLEX (D)")
+        self.update_headers(top_header, bot_header, "Uptake error (SD) - FREE (D)")
         if self._is_differential:
-            top_header.append("Uptake error (SD) - Complex (D)")
-            for time in self._time_points:
-                header.append(str(time) + " min")
-                top_header.append("")
-            top_header.pop()
-
+            self.update_headers(top_header, bot_header, "Uptake error (SD) - COMPLEX (D)")
         peptide_lines = []
         # Each loop generates one line
-
         for index, pep in enumerate(self._peptides):
             peptide = [pep.get_start(), pep.get_end(), pep.get_sequence(), pep.get_average_mass()]
             start, end = pep.get_rt_start_end()
@@ -328,80 +303,53 @@ class FullExperiment:
             peptide.append(rt)
             averages = []
             deviations = []
-            # Free portion
-
-            for time in self._time_points:
-                replications = []
-                for replication in range(self._num_replicates):
-                    replications.append(self.runs[time][False][replication][index])
-                average = sum(replications) / self._num_replicates
-                averages.append(average)
-                deviation = np.std(replications, ddof=1)
-                self.add_deviation(time, deviation, pep)
-                deviations.append(deviation)
-
-            # Complex Portion
+            self.average_replications(averages, deviations, pep, index, False)
             if self._is_differential:
-                for time in self._time_points:
-                    replications = []
-                    for replication in range(self._num_replicates):
-                        replications.append(self.runs[time][True][replication][index])
-                    average = sum(replications) / self._num_replicates
-                    averages.append(average)
-                    deviation = np.std(replications, ddof=1)
-                    self.add_deviation(time, deviation, pep)
-                    deviations.append(deviation)
+                self.average_replications(averages, deviations, pep, index, True)
             peptide.extend(averages)
             peptide.extend(deviations)
             peptide_lines.append(peptide)
 
-        with open(CON.SUMMARY_TABLE_1, "w+", newline='') as f:
+        with open(CON.RECOMMENDATION_TABLE_1, "w+", newline='') as f:
             csv_writer = csv.writer(f)
             csv_writer.writerow(top_header)
-            csv_writer.writerow(header)
+            csv_writer.writerow(bot_header)
             for line in peptide_lines:
                 csv_writer.writerow(line)
-        print("Wrote to:", CON.SUMMARY_TABLE_1)
+        print("Wrote to:", CON.RECOMMENDATION_TABLE_1)
 
-        ###################
-        # Generate Output 2
+    def generate_output(self):
+        print("\nGenerating Output file(s)")
+        self.generate_recommendation_table_1()
         # TODO Add Second Output
-
-        # Generates a Wood's plot for each time-point
         if self._is_differential:
-            self.generate_differential_woods_plot(CON.SUMMARY_TABLE_1, "Differential Woods' Plot", True)
+            self.generate_differential_woods_plot(CON.RECOMMENDATION_TABLE_1, CON.WOODS_PLOT_TITLE)
 
     # confidence is between 0 and 1, df is
     def calculate_confidence_limit(self, time, fractional):
         df = (self._num_replicates * 2) - 1
-        # TODO stdev is wayy to high for fractional data...
+        num_replications = self._num_replicates * 2
         if fractional:
             deviations = self.fractional_deviations_by_time[time]
         else:
             deviations = self.deviations_by_time[time]
-
         if not deviations:
             raise ValueError("add deviations before calculating confidence limit.")
-
-        if not 0 < CON.WOODS_PLOT_CONFIDENCE < 1:
-            print("confidence should be between 0 and 1")
-            raise ValueError
         stdev = sum(deviations) / len(deviations)
         alpha = 1 - CON.WOODS_PLOT_CONFIDENCE
         critical_value = stats.t.ppf(1 - (alpha / 2), df)
-        print("Stdev:", stdev, "replications:", self._num_replicates * 2, "critical v.:", critical_value)
-        return stdev / ((self._num_replicates * 2) ** 0.5) * critical_value
+        print("Stdev:", stdev, "replications:", num_replications, "critical v.:", critical_value)
+        return stdev / (num_replications ** 0.5) * critical_value
 
     # Saves a plot of name "file"_"time"s.png with a given title. can be fractional or absolute
     def generate_differential_woods_plot(self, file: str, title: str, fractional=True):
-        # Format plot
         plt.title(title)
         plt.xlabel("Sequence")
         plt.ylabel("Relative Uptake (Da)")
         for time in self._time_points:
             if fractional:
                 plt.ylabel("Relative Fractional Uptake")
-            confidence = self.calculate_confidence_limit(time, fractional)  # ######################
+            confidence = self.calculate_confidence_limit(time, fractional)
             print("Confidence:", confidence)
             plt.plot((0, len(self.protein)), (0, 0), 'k:')
             plt.plot((0, len(self.protein)), (confidence, confidence), 'r--')
@@ -414,8 +362,7 @@ class FullExperiment:
                 if fractional:
                     difference /= sequence_to_max_deuterium(row['Sequence']['Sequence'])
                 y = (difference, difference)
-                if abs(difference) < 10:
-                    plt.plot(x, y, 'k')
+                plt.plot(x, y, 'k')
             plot_file_name = CON.WOODS_PLOT_NAME + "_" + str(time) + "s.png"
             plt.savefig(plot_file_name, dpi=600)
 
@@ -474,34 +421,36 @@ class ExperimentalRun:
                 self.add_peptide(row['Peptide'], float(row['Precursor']),
                                  int(row['Charge']), int(row["ID"]), float(row["ScanNum"]))
 
+    def process_scan(self, scan):
+        retention_time = scan["scanList"]["scan"][0]["scan start time"] * CON.MINUTES_TO_SECONDS
+        tuple_list = []
+        for j in range(len(scan["m/z array"])):
+            if scan["intensity array"][j] >= CON.NOISE_LIMIT:
+                tuple_list.append((scan["m/z array"][j], scan["intensity array"][j]))
+        self.all_peaks.append({"retention time": retention_time, "tuple list": tuple_list})
+
     # creates a dictionary for each scan with the RT and a list with tuples containing the m/z and intensity
     def read_mzml(self, file: str):
         total = 0
         print("(initializing)")
         with mzml.read(file) as f:
-            for i in f:
-                if i["ms level"] == 1:
+            for scan in f:
+                if scan["ms level"] == 1:
                     total += 1
         count = 0
         retention_time = None
         with mzml.read(file) as f:
-            for i in f:
-                if i["ms level"] == 1:
-                    retention_time = i["scanList"]["scan"][0]["scan start time"] * CON.MINUTES_TO_SECONDS
+            for scan in f:
+                if scan["ms level"] == 1:
+                    retention_time = scan["scanList"]["scan"][0]["scan start time"] * CON.MINUTES_TO_SECONDS
                     count += 1
                     if count % 200 == 0 or count == 1 or count == total:
                         print(count, "/", total)
-                    tuple_list = []
-                    for j in range(len(i["m/z array"])):
-                        if i["intensity array"][j] >= CON.NOISE_LIMIT:
-                            tuple_list.append((i["m/z array"][j], i["intensity array"][j]))
-                    self.all_peaks.append({"retention time": retention_time, "tuple list": tuple_list})
-        print("")
+                    self.process_scan(scan)
         self.set_tuple_dictionary(self.sliding_window(retention_time))
 
     # averages intensity of similar masses within RT ranges
     def sliding_window(self, retention_time: float):
-
         window_count = int(int((retention_time // CON.SLIDING_WINDOW_SIZE) + 1) *
                            (CON.SLIDING_WINDOW_SIZE / CON.SLIDE_AMOUNT)) - 1
         start_time = datetime.now()
@@ -524,12 +473,10 @@ class ExperimentalRun:
         print("RT {}s / {}s".format(0, int(ret)))
         for rt, tuple_list in window_dictionary.items():
             window_dictionary[rt] = tuple_combine(tuple_list)
-            if int(float(rt[0])) != 0:
-                if int(float(rt[0])) % 600 == 0:
-                    print("RT {}s / {}s".format(int(rt[0]), int(ret)))
+            if int(float(rt[0])) != 0 and int(float(rt[0])) % 600 == 0:
+                print("RT {}s / {}s".format(int(rt[0]), int(ret)))
         print("Sliding Window Complete")
-        print("Time elapsed:", datetime.now() - start_time)
-        print("")
+        print("Time elapsed:", datetime.now() - start_time, "\n")
         return window_dictionary
 
     def add_peptide(self, sequence, mz, charge, pep_id, scan):
@@ -557,36 +504,40 @@ class ExperimentalRun:
             for i in tic_list:
                 csv_writer.writerow(i)
 
-    # main function of program
+    def match_peptides(self, pep):
+        start, end = pep.get_rt_start_end()
+
+        charge = pep.get_charge()
+        pep_mass_over_charge = pep.get_mass_over_charge()
+        pep_mass = pep_mass_over_charge * charge
+        tuple_list = []
+        # collects windows that match the rt of the sequence to user rt tolerance.
+        for rt, tup_list in self.get_tuple_dictionary().items():
+            if start <= rt[0] <= end or start <= rt[1] <= end:
+                tuple_list.extend(tup_list)
+        tuple_list.sort(key=lambda x: x[0])
+        # searches for a match for each deuteration
+        for det in range(pep.get_max_deuterium() + 1):
+            ppm_error, mz, intensity = compare(pep_mass + det * CON.DEUTERIUM_MASS,
+                                               charge, tuple_list, tuple_list)
+            if ppm_error != 0:
+                pep.set_deuterium(det, mz, intensity, ppm_error)
+        pep.set_weighted_mass()
+
     def hydrogen_deuterium_exchange(self, identification_file: str):
+        """This function reads the identification file and converts the
+        scan #'s to retention times. Then it goes through each peptide and
+        matches each deuterium if possible. This ends by writing to an output
+        file which contains information on each potential deuteration. This
+        should be run for each experimental run."""
         self.read_input(CON.IDENTIFICATION_CSV_FILE)
         self.set_pep_retention_times(identification_file)
         count = 0
         start_time = datetime.now()
-        tuple_dictionary = self.get_tuple_dictionary()
         print("Begin matching")
         for pep in self.peptides:
-            start, end = pep.get_rt_start_end()
+            self.match_peptides(pep)
             count += 1
-
-            charge = pep.get_charge()
-            pep_mass_over_charge = pep.get_mass_over_charge()
-            pep_mass = pep_mass_over_charge * charge
-
-            tuple_list = []
-            # collects windows that match the rt of the sequence to user tolerance
-            for rt, tup_list in tuple_dictionary.items():
-                if start <= rt[0] <= end or start <= rt[1] <= end:
-                    tuple_list.extend(tup_list)
-            tuple_list.sort(key=lambda x: x[0])
-
-            # searches for a match for each deuteration
-            for det in range(pep.get_max_deuterium() + 1):
-                ppm_error, mz, intensity = compare(pep_mass + det * CON.DEUTERIUM_MASS,
-                                                   charge, tuple_list, tuple_list)
-                if ppm_error != 0:
-                    pep.set_deuterium(det, mz, intensity, ppm_error)
-            pep.set_weighted_mass()
             if count % 20 == 0 or count == 1 or count == len(self.peptides):
                 print(count, "/", len(self.peptides))
         print("Time to match:", datetime.now() - start_time)
@@ -595,7 +546,6 @@ class ExperimentalRun:
             complexity = "Complex"
         file = CON.FULL_HDX_OUTPUT + "_" + str(self._time) + "s_" + str(complexity) + "_" + str(self._run + 1) + ".csv"
         self.write_hdx(file)
-        # self.write_table(CON.SUMMARY_HDX_OUTPUT)
 
     # outputs tabular info of HDX results to .csv
     def write_hdx(self, file: str):
@@ -615,21 +565,6 @@ class ExperimentalRun:
             for line in lines:
                 csv_writer.writerow(line)
             print("Wrote to:", file)
-
-    # outputs peptide summary to .csv
-    def write_table(self, file: str):
-        with open(file, "w+", newline='') as f:
-            csv_writer = csv.writer(f)
-
-            header = ["Start", "End", "Peptide", "PeptideAverageMass",
-                      "RT", "DeuteriumUptake"]
-            csv_writer.writerow(header)
-            lines = []
-            for pep in self.peptides:
-                lines.append(pep.get_table_row())
-            for line in lines:
-                csv_writer.writerow(line)
-            print(file)
 
 
 ######################################################################
