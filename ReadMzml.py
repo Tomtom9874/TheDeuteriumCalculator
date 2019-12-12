@@ -231,6 +231,7 @@ class FullExperiment:
             self.deviations_by_time[time] = []
             self.fractional_deviations_by_time[time] = []
         self.protein = parse_protein(CON.PROTEIN_SEQUENCE_FILE)
+        self.add_file_names()
 
     def add_runs(self, time):
         count = 0
@@ -391,7 +392,6 @@ class FullExperiment:
 
     def coverage_calculator(self):
         pass
-        # TODO Implement coverage calculator
 
 
 ##########################################################################
@@ -743,12 +743,7 @@ class Peptide:
         self._average_mass = mass
 
 
-def main():
-    # TODO refactor main()
-    start_time = datetime.now()
-    check_parameters()
-
-    # Gets user input on time points
+def get_time_points():
     num_time_points = 0
     while num_time_points < 1:
         num_time_points = int(input("How many time points? "))
@@ -763,8 +758,10 @@ def main():
             if usr_input < 0:
                 print("Please enter 0 or a positive integer.")
         time_points.append(usr_input)
+    return time_points
 
-    # Gets user input on whether the run is differential
+
+def get_is_differential():
     is_differential = -1
     while is_differential == -1:
         differential_input = input("Was this a differential experiment (Y/N)? ").lower().strip()
@@ -774,21 +771,43 @@ def main():
             is_differential = False
         else:
             print("Please enter 'Yes' or 'No'")
+    return is_differential
 
-    # Gets user input on the number of replications
+
+def get_num_replications():
     num_replications = 0
     while num_replications < 1:
         num_replications = int(input("How many replications? "))
         if num_replications < 1:
             print("Please enter a positive integer.")
+    return num_replications
 
-    experiment = FullExperiment(time_points, is_differential, num_replications)
-    experiment.add_file_names()
-    for time in time_points:
-        experiment.add_runs(time)
-    experiment.generate_output()
 
-    print("Total Time Elapsed:", datetime.now() - start_time)
+def show_menu():
+    print("Please enter the number of one of the following selections:")
+    print("(1) Generate detailed output from mzML")
+    print("(2) Generate Summary Output from detailed outputs")
+    print("(3) Generate Figures from Summary Output")
+
+
+def main():
+    menu_input = None
+    while menu_input != 'q':
+        show_menu()
+        menu_input = input().strip()[0]
+        if menu_input == '1':
+            start_time = datetime.now()
+            check_parameters()
+            # Get User Input
+            time_points = get_time_points()
+            is_differential = get_is_differential()
+            num_replications = get_num_replications()
+            # Perform peak matching and generate output
+            experiment = FullExperiment(time_points, is_differential, num_replications)
+            for time in time_points:
+                experiment.add_runs(time)
+            experiment.generate_output()
+            print("Total Time Elapsed:", datetime.now() - start_time)
 
 
 if __name__ == '__main__':
