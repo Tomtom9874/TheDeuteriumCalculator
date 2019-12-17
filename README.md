@@ -1,5 +1,4 @@
 # README
-***
 ## Python Installation
 Head over to <a href="https://www.python.org/downloads/">Python.org</a> to install Python. Currently the supported version is: 3.7.5.
 
@@ -12,7 +11,6 @@ Packages are premade code usable by other software. This program depends on a nu
 _**note: there are no numbers, any "l" character is the letter. It is recommended to copy paste the above line directly.**_
 
 ## Preparation
-***
 Open the file named _**Parameters.py**_ or _**Parameters**_. This file is divided into five sections.
 
 In the first you change the input files to the names of your input files **(including the file extension e.g. .txt, .mzML)**.

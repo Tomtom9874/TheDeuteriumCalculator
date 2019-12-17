@@ -229,9 +229,11 @@ class FullExperiment:
         self._file_names = []
         self.deviations_by_time = {}
         self.fractional_deviations_by_time = {}
+        self.averages = {}
         for time in self._time_points:
             self.deviations_by_time[time] = []
             self.fractional_deviations_by_time[time] = []
+            self.averages[time] = []
         self.protein = parse_protein(CON.PROTEIN_SEQUENCE_FILE)
 
     def add_runs(self, time):
@@ -272,6 +274,9 @@ class FullExperiment:
             self.deviations_by_time[time].append(deviation)
             self.fractional_deviations_by_time[time].append(deviation / pep.get_max_deuterium())
 
+    def add_average(self, time, average):
+        self.averages[time].append(average)
+
     # adds the name of each file to the list
     def add_file(self, time, is_complex: bool, replication):
         complexity = "Free"
@@ -309,6 +314,9 @@ class FullExperiment:
             self._peptides.append(pep)
             uptakes.append(pep.get_mass_shift())
         self.runs[time][complexity][replication] = uptakes
+
+    def get_uptake(self, time, complexity, replication):
+        return self.runs[time][complexity][replication]
 
     def update_headers(self, top_header, bottom_header, header_name):
         top_header.append(header_name)
@@ -365,10 +373,46 @@ class FullExperiment:
                 csv_writer.writerow(line)
         print("Wrote to:", CON.RECOMMENDATION_TABLE_1, "\n")
 
+    def generate_rows(self, df, time, complexity):
+        for pep in self._peptides:
+            print(pep)
+            row = {}
+            if complexity:
+                row["Protein state"] = "Complex"
+            else:
+                row["Protein state"] = "Free"
+            row["Start"], row["End"] = pep.get_start(), pep.get_end()
+            row["Sequence"] = pep.get_sequence()
+            row["Peptide mass (Da)"] = pep.get_monoisotopic_mass()
+            start, end = pep.get_rt_start_end()
+            average_rt = (start + end) / 2
+            row["Retention time (min)"] = average_rt
+            row["HDX time (min)"] = time
+            row["Uptake (D)"] = pep.get_mass_shift()
+            uptakes = []
+            for replication in range(self._num_replications):
+                uptakes.append(self.get_uptake(time, complexity, replication))
+            stdev = np.std(uptakes, ddof=1)
+            row["Uptake SD (D)"] = stdev
+            df = df.append(row, ignore_index=True)
+        return df
+
+    def generate_recommendation_table_2(self):
+        # TODO Add Second Output
+        header = ["Protein state", "Sequence", "Start", "End", "Peptide mass (Da)", "Retention time (min)",
+                  "HDX time (min)", "Uptake (D)", "Uptake SD (D)"]
+        df = pd.DataFrame(columns=header)
+        for time in self._time_points:
+            df = self.generate_rows(df, time, False)
+            if self._is_differential:
+                df = self.generate_rows(df, time, True)
+        df.to_csv(CON.RECOMMENDATION_TABLE_2, index=False)
+
     def generate_output(self):
         print("\nGenerating Output file(s)")
         self.generate_recommendation_table_1()
-        # TODO Add Second Output
+        if len(self._time_points) > 1:
+            self.generate_recommendation_table_2()
         if self._is_differential:
             self.generate_differential_woods_plot(CON.RECOMMENDATION_TABLE_1, CON.WOODS_PLOT_TITLE)
 
@@ -782,6 +826,9 @@ class Peptide:
         ppm = self._deuterium_dictionary[deuterium]["ppm"]
         return mz, intensity, ppm
 
+    def get_monoisotopic_mass(self):
+        return self._mass_over_charge * self._charge + CON.MASS_OF_WATER
+
     # Setters
     def set_sequence_index(self, start, end):
         self._start = start
@@ -884,6 +931,7 @@ def main():
     time_points = get_time_points()
     is_differential = get_is_differential()
     num_replications = get_num_replications()
+    print()
     check_parameters()
     menu_input = None
     while menu_input != 'q':
