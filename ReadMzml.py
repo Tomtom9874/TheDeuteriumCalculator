@@ -77,8 +77,8 @@ def check_parameters():
         raise ValueError
 
 
-# helper function for check_parameters()
 def check_extension(string, extension):
+    # helper function for check_parameters()
     if string[-len(extension):].lower() != extension:
         return False
     else:
@@ -219,11 +219,13 @@ class FullExperiment:
     def __init__(self, time_points: list, differential: bool, replications: int):
         self.runs = {}
         self._is_differential = differential
-        self._num_replicates = replications
+        self._num_replications = replications
         self._time_points = time_points
         self._peptides = []
+        self._output_files = {}
         for time in self._time_points:
             self.runs[time] = {True: {}, False: {}}
+            self._output_files[time] = {True: {}, False: {}}
         self._file_names = []
         self.deviations_by_time = {}
         self.fractional_deviations_by_time = {}
@@ -231,26 +233,35 @@ class FullExperiment:
             self.deviations_by_time[time] = []
             self.fractional_deviations_by_time[time] = []
         self.protein = parse_protein(CON.PROTEIN_SEQUENCE_FILE)
-        self.add_file_names()
 
     def add_runs(self, time):
         count = 0
-        for replication in range(self._num_replicates):
+        for replication in range(self._num_replications):
             self.add_run(time, False, replication, count)
             count += 1
         if self._is_differential:
-            for replication in range(self._num_replicates):
+            for replication in range(self._num_replications):
                 self.add_run(time, True, replication, count)
                 count += 1
+
+    def read_runs(self):
+        for time in self._time_points:
+            complexity = False
+            for replication in range(self._num_replications):
+                self.read_run(time, complexity, replication)
+            if self._is_differential:
+                complexity = True
+                for replication in range(self._num_replications):
+                    self.read_run(time, complexity, replication)
 
     def add_file_names(self):
         for time in self._time_points:
             complexity = False
-            for replication in range(self._num_replicates):
+            for replication in range(self._num_replications):
                 self.add_file(time, complexity, replication)
             if self._is_differential:
                 complexity = True
-                for replication in range(self._num_replicates):
+                for replication in range(self._num_replications):
                     self.add_file(time, complexity, replication)
 
     def get_file(self, index: int):
@@ -277,12 +288,22 @@ class FullExperiment:
 
     # Adds a new experimental run, adds the peptides on the first run
     def add_run(self, time, complexity: bool, replication, index: int):
-
         run = ExperimentalRun(run=replication, complexity=complexity, time=time)
         file = self._file_names[index]
         run.read_mzml(file)
         run.hydrogen_deuterium_exchange(CON.IDENTIFICATION_MZML_FILE)
         uptakes = []
+        self._peptides = []
+        for pep in run.get_peptides():
+            self._peptides.append(pep)
+            uptakes.append(pep.get_mass_shift())
+        self.runs[time][complexity][replication] = uptakes
+
+    def read_run(self, time, complexity: bool, replication):
+        run = ReadRun(time, complexity, replication)
+        file = generate_output_name(time, complexity, replication)
+        uptakes = []
+        run.read_output(file)
         self._peptides = []
         for pep in run.get_peptides():
             self._peptides.append(pep)
@@ -298,14 +319,16 @@ class FullExperiment:
     # Contains multiple subroutines that generate each type of output
 
     def average_replications(self, averages, deviations, pep, index, complexity):
-        # TODO may need to be rearranged to support multiple time points
         for time in self._time_points:
             replications = []
-            for replication in range(self._num_replicates):
+            for replication in range(self._num_replications):
                 replications.append(self.runs[time][complexity][replication][index])
-            average = sum(replications) / self._num_replicates
+            average = sum(replications) / self._num_replications
             averages.append(average)
-            deviation = np.std(replications, ddof=1)
+            if self._num_replications > 1:
+                deviation = np.std(replications, ddof=1)
+            else:
+                deviation = 0
             self.add_deviation(time, deviation, pep)
             deviations.append(deviation)
 
@@ -340,7 +363,7 @@ class FullExperiment:
             csv_writer.writerow(bot_header)
             for line in peptide_lines:
                 csv_writer.writerow(line)
-        print("Wrote to:", CON.RECOMMENDATION_TABLE_1)
+        print("Wrote to:", CON.RECOMMENDATION_TABLE_1, "\n")
 
     def generate_output(self):
         print("\nGenerating Output file(s)")
@@ -351,8 +374,8 @@ class FullExperiment:
 
     # confidence is between 0 and 1, df is
     def calculate_confidence_limit(self, time, fractional):
-        df = (self._num_replicates * 2) - 1
-        num_replications = self._num_replicates * 2
+        df = (self._num_replications * 2) - 1
+        num_replications = self._num_replications * 2
         if fractional:
             deviations = self.fractional_deviations_by_time[time]
         else:
@@ -370,9 +393,9 @@ class FullExperiment:
         plt.title(title)
         plt.xlabel("Sequence")
         plt.ylabel("Relative Uptake (Da)")
+        if fractional:
+            plt.ylabel("Relative Fractional Uptake")
         for time in self._time_points:
-            if fractional:
-                plt.ylabel("Relative Fractional Uptake")
             confidence = self.calculate_confidence_limit(time, fractional)
             print("Confidence:", confidence)
             plt.plot((0, len(self.protein)), (0, 0), 'k:')
@@ -395,13 +418,43 @@ class FullExperiment:
 
 
 ##########################################################################
+class ReadRun:
+
+    def __init__(self, time, complexity, replication):
+        self.peptides = []
+        self._replication = replication
+        self._complexity = complexity
+        self._time = time
+
+    def get_peptides(self):
+        return self.peptides
+
+    def read_output(self, output_file):
+        df = pd.read_csv(output_file, sep=',')
+        pep = Peptide("NA", 0, 0, 0)
+        is_first = True
+        for index, row in df.iterrows():
+            if int(row['Deuterium']) == 0:
+                if is_first:
+                    is_first = False
+                else:
+                    pep.set_weighted_mass()
+                    pep.set_fit()
+                    self.peptides.append(pep)
+                pep = Peptide(row['Sequence'], row['SequenceMz'], row['Charge'], "N/A")
+                pep.set_sequence_index(row['Start'], row['End'])
+                pep.set_retention_times(row['RT'], row['RT'])
+            pep.set_deuterium(row['Deuterium'], row['Mz'], row['Intensity'], row['PpmError'])
+
+
+##########################################################################
 class ExperimentalRun:
 
     def __init__(self, run, complexity, time):
         self.all_peaks = []
         self.peptides = []
         self.windows = {}
-        self._run = run
+        self._replication = run
         self._complexity = complexity
         self._time = time
 
@@ -410,7 +463,7 @@ class ExperimentalRun:
         return self.peptides
 
     def get_run(self):
-        return self._run
+        return self._replication
 
     def get_complexity(self):
         return self._complexity
@@ -442,7 +495,7 @@ class ExperimentalRun:
             csv_reader = csv.DictReader(f)
             for row in csv_reader:
                 self.add_peptide(row['Peptide'], float(row['Precursor']),
-                                 int(row['Charge']), int(row["ID"]), float(row["ScanNum"]))
+                                 int(row['Charge']), float(row["ScanNum"]))
 
     def process_scan(self, scan):
         retention_time = scan["scanList"]["scan"][0]["scan start time"] * CON.MINUTES_TO_SECONDS
@@ -504,8 +557,8 @@ class ExperimentalRun:
         print("Time elapsed:", datetime.now() - start_time, "\n")
         return window_dictionary
 
-    def add_peptide(self, sequence, mz, charge, pep_id, scan):
-        self.peptides.append(Peptide(sequence, mz, charge, pep_id, scan))
+    def add_peptide(self, sequence, mz, charge, scan):
+        self.peptides.append(Peptide(sequence, mz, charge, scan))
 
     def iterlists(self, index):
         yield from self.all_peaks[index]["tuple list"]
@@ -566,11 +619,7 @@ class ExperimentalRun:
             if count % 20 == 0 or count == 1 or count == len(self.peptides):
                 print(count, "/", len(self.peptides))
         print("Time to match:", datetime.now() - start_time)
-        complexity = "Free"
-        if self._complexity:
-            complexity = "Complex"
-        file = (CON.FULL_HDX_OUTPUT + "_" + str(self._time) + "s_"
-                + str(complexity) + "_" + str(self._run + 1) + ".csv")
+        file = generate_output_name(self._time, self._complexity, self._replication)
         self.write_hdx(file)
 
     # outputs tabular info of HDX results to .csv
@@ -594,14 +643,38 @@ class ExperimentalRun:
             print("Wrote to:", file)
 
 
+def generate_output_name(time, is_complex, replication):
+    complexity = "Free"
+    if is_complex:
+        complexity = "Complex"
+    file = (CON.FULL_HDX_OUTPUT + "_" + str(time) + "s_"
+            + str(complexity) + "_" + str(replication + 1) + ".csv")
+    return file
+
+
+def read_sequence(string):
+    has_period = ('.' in string)
+    if not has_period:
+        return string
+    found_period = False
+    return_string = ""
+    for letter in string:
+        if letter == '.' and found_period:
+            return return_string
+        elif letter == '.':
+            found_period = True
+        elif found_period:
+            return_string += letter
+    raise ValueError("Sequence formatted incorrectly")
+
+
 ######################################################################
 class Peptide:
-    def __init__(self, sequence, mz, charge, pep_id, scan):
+    def __init__(self, sequence, mz, charge, scan):
         self._windows = []
-        self._sequence = sequence[2:len(sequence) - 2]
+        self._sequence = read_sequence(sequence)
         self._charge = charge
         self._mass_over_charge = mz
-        self._id = pep_id
         self._rt_start = 0
         self._rt_end = float("inf")
         self._scan = scan
@@ -618,6 +691,17 @@ class Peptide:
         if self._start == "NULL":
             print(self._sequence)
         self._fit = 0  # Gaussian fit
+
+    def __str__(self):
+        self.__repr__()
+        return ""
+
+    def __repr__(self):
+        print("Sequence:", self._sequence)
+        print("Average Mass:", self._average_mass)
+        print("Max Deuterium:", self.get_max_deuterium())
+        print("Fit:", self._fit)
+        print("Mass Shift:", self._mass_shift)
 
     # Getters
     def get_fit(self):
@@ -699,6 +783,10 @@ class Peptide:
         return mz, intensity, ppm
 
     # Setters
+    def set_sequence_index(self, start, end):
+        self._start = start
+        self._end = end
+
     def set_fit(self):
         intensities = []
         for key in self._deuterium_dictionary.keys():
@@ -786,28 +874,35 @@ def get_num_replications():
 def show_menu():
     print("Please enter the number of one of the following selections:")
     print("(1) Generate detailed output from mzML")
-    print("(2) Generate Summary Output from detailed outputs")
-    print("(3) Generate Figures from Summary Output")
+    print("(2) Generate summary and figures from detailed outputs")
+    print("(3) Quit")
 
 
+##############################################################################
 def main():
+    # Get User Input
+    time_points = get_time_points()
+    is_differential = get_is_differential()
+    num_replications = get_num_replications()
+    check_parameters()
     menu_input = None
     while menu_input != 'q':
         show_menu()
         menu_input = input().strip()[0]
         if menu_input == '1':
             start_time = datetime.now()
-            check_parameters()
-            # Get User Input
-            time_points = get_time_points()
-            is_differential = get_is_differential()
-            num_replications = get_num_replications()
             # Perform peak matching and generate output
             experiment = FullExperiment(time_points, is_differential, num_replications)
+            experiment.add_file_names()
             for time in time_points:
                 experiment.add_runs(time)
-            experiment.generate_output()
             print("Total Time Elapsed:", datetime.now() - start_time)
+        if menu_input == '2':
+            experiment = FullExperiment(time_points, is_differential, num_replications)
+            experiment.read_runs()
+            experiment.generate_output()
+        if menu_input == '3':
+            quit()
 
 
 if __name__ == '__main__':

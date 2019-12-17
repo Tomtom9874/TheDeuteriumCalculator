@@ -1,5 +1,5 @@
 # Input Files
-IDENTIFICATION_MZML_FILE = r"C:\Users\Tom\PycharmProjects\TheDeuteriumCalculator\\mzMLFiles\IDRun.mzML"  # must be .mzML
+IDENTIFICATION_MZML_FILE = r"C:\Users\Tom\PycharmProjects\TheDeuteriumCalculator\mzMLFiles\IDRun.mzML"  # must be .mzML
 IDENTIFICATION_CSV_FILE = r"C:\Users\Tom\PycharmProjects\DeuteriumCalculator\Input.csv"  # Must be .csv
 PROTEIN_SEQUENCE_FILE = r"C:\Users\Tom\PycharmProjects\TheDeuteriumCalculator\Protein.txt"  # Must be .txt
 
@@ -10,7 +10,7 @@ RECOMMENDATION_TABLE_2 = r"Outputs\Recommendation_Table_2.csv"  # Must be .csv
 
 # Output Figures
 WOODS_PLOT_NAME = r"Outputs\WoodsPlot"  # no file extension
-WOODS_PLOT_TITLE = r"Outputs\Differential Fractional Uptake Woods' Plot"  # Title on the woods' plot
+WOODS_PLOT_TITLE = r"Differential Fractional Uptake Woods' Plot"  # Title on the woods' plot
 
 # Parameters (Can be changed, defaults given in parenthesis)
 NOISE_LIMIT = 10000  # All individual peaks with less than this intensity ignored (10000)
@@ -22,9 +22,6 @@ RETENTION_TOLERANCE = 30  # window of retention times to search for given peptid
 WOODS_PLOT_CONFIDENCE = 0.99  # Use to calculate confidence interval for differential woods plot (0-1)
 
 # Constants (Do not change)
-DEUTERIUM_MASS = 1.00627
-MINUTES_TO_SECONDS = 60
-SLIDE_AMOUNT = SLIDING_WINDOW_SIZE / SLIDE_FRACTION
 PEPTIDE_MASS_DICTIONARY = {
     'A': 71.0779,
     'C': 103.1429,
@@ -48,5 +45,8 @@ PEPTIDE_MASS_DICTIONARY = {
     'Y': 163.1733,
     'V': 99.1311
 }
+SLIDE_AMOUNT = SLIDING_WINDOW_SIZE / SLIDE_FRACTION
+DEUTERIUM_MASS = 1.00627
+MINUTES_TO_SECONDS = 60
 MASS_OF_WATER = 18.01528
 MASS_OF_HYDROGEN = 1.007276
