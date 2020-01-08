@@ -1,6 +1,6 @@
 # README
 ## Python Installation
-Head over to <a href="https://www.python.org/downloads/">Python.org</a> to install Python. Currently the supported version is: 3.7.5.
+Head over to <a href="https://www.python.org/downloads/">Python.org</a> to install Python. Currently the supported version is: 3.8.1.
 
 The only change to the settings you need to make is checking the box which adds Python to the Path.
 
@@ -20,8 +20,11 @@ _**Identification mzML File-**_ The mzML file which you performed the database s
 
 _**Identification CSV File-**_ The CSV file created from the output of your data base search. It should have the following columns (with correct name): ID, ScanNum, Precursor, Charge, Peptide
 
-**ID** is a unique key for each sequence and is simply a column of ascending integers. **ScanNum** is the scan where the peptide was identified. **Precursor** is the m/z of the identified sequence, 
+**ID** is a unique key for each sequence and is simply a column of ascending integers. **ScanNum** is the scan where the peptide was identified. 
+**Precursor** is the m/z of the identified sequence, 
 **Charge** is the z integer value, and **Peptide** is the sequence of amino acids.
+
+_**Protein Sequence File**_ This is a .txt file which simply contains the string of characters representing the amino acids in the protein being examined.
 
 The second section is the output files. Here you can either give the path to the location of each output file or you can simply put the name of the file and it will be added to the working directory.
 *Once again, do not remove the r before the path*
@@ -60,7 +63,23 @@ In this directory
 
 Type `"python TheDeuteriumCalculator"`
 
-
 This will start the program.
+Each time the program runs you will be prompted for a number of details on the program. They are:
 
-You will be prompted for the details of your experiment, then you will be asked for the path of each each of you experimental files. On Windows you can copy the path by holding shift, right clicking the file, and clicking "copy as path."
+* The number of time points
+* The time at which data were collected for each time point
+* Whether the experiment was differential or not
+* The number of replications (DO NOT DOUBLE FOR DIFFERENTIAL EXPERIMENTS)
+
+This will bring you to the main menu. If this is the first time running the program for the current experiment type "1." This will begin the portion of the program which reads the data from the experimental mzML files.
+You will be prompted for the path to each mzML file. You can copy the path on Windows by holding shift and right clicking the file and selecting "Copy as Path." The program will then begin processing the data automatically until this step is finished.
+At that point detailed outputs will be generated which contain information on every peak matched. 
+
+Step two can either be selected immediately or one can exit the program and manually edit data. This can be acheived by changing the intensity of any points that are incorrect to zero. 
+**If changes are made to the data, the program must be restarted before they can be recognized.** Step two will generate the final outputs, including summary data and the Woods' Plot. 
+
+***
+## Notes
+
+* Step one only needs to be completed once per experiment, unless user error is noticed such as incorrect selection of mzML files.
+* If you are working on multiple experiments simultaneously, one must be careful to change the names of any outputs or move them, as they will otherwise be overwritten.

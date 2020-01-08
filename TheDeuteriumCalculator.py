@@ -223,7 +223,6 @@ def compare(target, charge, array, full_array):
 
 # Converts scan number to retention time using the mzml file
 def set_retention_times(file: str):
-    # TODO Add in optional retention normalization
     retention_scan_dictionary = {}
     with mzml.read(file) as f:
         for scan in f:
@@ -955,7 +954,10 @@ class Peptide:
 def get_time_points():
     num_time_points = 0
     while num_time_points < 1:
-        num_time_points = int(input("How many time points? "))
+        try:
+            num_time_points = int(input("How many time points? "))
+        except ValueError:
+            pass
         if num_time_points < 1:
             print("Please enter a positive integer.")
     print("Please enter each time point")
@@ -963,7 +965,10 @@ def get_time_points():
     for i in range(num_time_points):
         usr_input = -1
         while usr_input < 0:
-            usr_input = int(input("Time point #{} (s): ".format(i + 1)))
+            try:
+                usr_input = int(input("Time point #{} (s): ".format(i + 1)))
+            except ValueError:
+                pass
             if usr_input < 0:
                 print("Please enter 0 or a positive integer.")
         time_points.append(usr_input)
@@ -986,7 +991,10 @@ def get_is_differential():
 def get_num_replications():
     num_replications = 0
     while num_replications < 1:
-        num_replications = int(input("How many replications? "))
+        try:
+            num_replications = int(input("How many replications? "))
+        except ValueError:
+            pass
         if num_replications < 1:
             print("Please enter a positive integer.")
     return num_replications
@@ -1010,7 +1018,10 @@ def main():
     menu_input = None
     while menu_input != 'q':
         show_menu()
-        menu_input = input().strip()[0]
+        try:
+            menu_input = input().strip()[0]
+        except IndexError:
+            pass
         if menu_input == '1':
             start_time = datetime.now()
             # Perform peak matching and generate output

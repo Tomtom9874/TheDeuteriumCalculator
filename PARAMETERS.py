@@ -9,10 +9,6 @@ RECOMMENDATION_TABLE_1 = r"Outputs\Recommendation_Table_1.csv"  # Must be .csv
 RECOMMENDATION_TABLE_2 = r"Outputs\Recommendation_Table_2.csv"  # Must be .csv
 SUMMARY_TABLE = r"Outputs\Summary.csv"  # Must be .csv
 
-# Output Figures
-WOODS_PLOT_NAME = r"Outputs\WoodsPlot"  # no file extension
-WOODS_PLOT_TITLE = r"Differential Fractional Uptake Woods' Plot"  # Title on the woods' plot
-
 # Parameters (Can be changed, defaults given in parenthesis)
 NOISE_LIMIT = 10000  # All individual peaks with less than this intensity ignored (10000)
 PPM_MATCH_TOLERANCE = 10  # Peaks with less difference than this value matched to sequence (10)
@@ -22,6 +18,10 @@ SLIDE_FRACTION = 3  # Fraction of the window that the window moves each each sli
 RETENTION_TOLERANCE = 30  # window of retention times to search for given peptide (+-) (30)
 WOODS_PLOT_CONFIDENCE = 0.99  # Use to calculate confidence interval for differential woods plot (0-1)
 RETENTION_TOLERANCE_OFFSET = -120
+
+# Woods' Plot
+WOODS_PLOT_NAME = r"Outputs\WoodsPlot"  # no file extension
+WOODS_PLOT_TITLE = r"Differential Fractional Uptake Woods' Plot"  # Title on the woods' plot
 
 # Constants (Do not change)
 FREE = "Free"
