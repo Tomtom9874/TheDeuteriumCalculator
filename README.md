@@ -61,7 +61,7 @@ Type `"cd DueterationCalculator"`
 In this directory
 
 
-Type `"python TheDeuteriumCalculator"`
+Type `"python TheDeuteriumCalculator.py"`
 
 This will start the program.
 Each time the program runs you will be prompted for a number of details on the program. They are:

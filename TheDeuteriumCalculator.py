@@ -183,9 +183,11 @@ def tuple_combine(some_list):
 # Modified binary search which returns the highest-intensity peak within a ppm tolerance
 def compare(target, charge, array, full_array):
     midpoint = int(len(array) / 2)
+    # This represents any match
     if abs(get_ppm(target, array[midpoint][0] * charge)) <= CON.PPM_MATCH_TOLERANCE:
         return_list = [(array[midpoint][0], array[midpoint][1])]
         offset = 1
+        # These two while loops then check any adjacent peask
         while offset != 0 and (midpoint - offset) > 0:
             peak = array[midpoint - offset]
             ppm = abs(get_ppm(target, peak[0] * charge))
