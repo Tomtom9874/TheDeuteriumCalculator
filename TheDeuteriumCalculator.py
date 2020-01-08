@@ -11,6 +11,17 @@ from pyteomics import mzml
 from datetime import datetime
 from os import path
 from matplotlib import pyplot as plt
+from scipy.optimize import OptimizeWarning
+
+# checks whether an output directory exists, ignores actual filename
+def check_directory(file_path):
+    end_path = 0
+    for index, char in enumerate(file_path):
+        if char == '\\' or char == '/':
+            end_path = index
+    if end_path > 0:
+        if not path.exists(file_path[0:end_path]):
+            raise FileExistsError("Output directory does not exit.")
 
 
 # fit_gaussian helper function
@@ -50,6 +61,8 @@ def fit_gaussian(y_data):
         return r_squared
     except RuntimeError:
         return "N/A"
+    except OptimizeWarning:
+        pass
 
 
 # returns the maximum possible deuterium for a given sequence
@@ -90,6 +103,12 @@ def check_parameters():
     if not 0 < CON.WOODS_PLOT_CONFIDENCE < 1:
         print("confidence should be between 0 and 1")
         raise ValueError
+    check_directory(CON.FULL_HDX_OUTPUT)
+    check_directory(CON.RECOMMENDATION_TABLE_1)
+    check_directory(CON.RECOMMENDATION_TABLE_2)
+    check_directory(CON.SUMMARY_TABLE)
+    check_directory(CON.WOODS_PLOT_NAME)
+    check_directory(CON.WOODS_TABLE_NAME)
 
 
 def check_extension(string, extension):

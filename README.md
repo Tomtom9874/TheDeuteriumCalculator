@@ -82,3 +82,4 @@ Step two can either be selected immediately or one can exit the program and manu
 
 * Step one only needs to be completed once per experiment, unless user error is noticed such as incorrect selection of mzML files.
 * If you are working on multiple experiments simultaneously, one must be careful to change the names of any outputs or move them, as they will otherwise be overwritten.
+* Always close any existing output files before running the program. 
