@@ -13,8 +13,6 @@ def read_sequence(string):
             return_string += letter
     raise ValueError("Sequence formatted incorrectly")
 
-
-
 def main():
     sequence = "m.fffffdd.dg"
     print(read_sequence(sequence))

@@ -1,12 +1,13 @@
 # Input Files
 IDENTIFICATION_MZML_FILE = r"C:\Users\Tom\PycharmProjects\TheDeuteriumCalculator\mzMLFiles\IDRun.mzML"  # must be .mzML
-IDENTIFICATION_CSV_FILE = r"C:\Users\Tom\PycharmProjects\DeuteriumCalculator\Input.csv"  # Must be .csv
+IDENTIFICATION_CSV_FILE = r"C:\Users\Tom\PycharmProjects\TheDeuteriumCalculator\Input.csv"  # Must be .csv
 PROTEIN_SEQUENCE_FILE = r"C:\Users\Tom\PycharmProjects\TheDeuteriumCalculator\Protein.txt"  # Must be .txt
 
 # Output Files
 FULL_HDX_OUTPUT = r"Outputs\HdxOutput"  # no file extension
 RECOMMENDATION_TABLE_1 = r"Outputs\Recommendation_Table_1.csv"  # Must be .csv
 RECOMMENDATION_TABLE_2 = r"Outputs\Recommendation_Table_2.csv"  # Must be .csv
+SUMMARY_TABLE = r"Outputs\Summary.csv"  # Must be .csv
 
 # Output Figures
 WOODS_PLOT_NAME = r"Outputs\WoodsPlot"  # no file extension
@@ -20,8 +21,11 @@ SLIDING_WINDOW_SIZE = 30  # width of sliding window in seconds, should be intege
 SLIDE_FRACTION = 3  # Fraction of the window that the window moves each each slide (3)
 RETENTION_TOLERANCE = 30  # window of retention times to search for given peptide (+-) (30)
 WOODS_PLOT_CONFIDENCE = 0.99  # Use to calculate confidence interval for differential woods plot (0-1)
+RETENTION_TOLERANCE_OFFSET = -120
 
 # Constants (Do not change)
+FREE = "Free"
+COMPLEX = "Complex"
 PEPTIDE_MASS_DICTIONARY = {
     'A': 71.0779,
     'C': 103.1429,
@@ -46,7 +50,7 @@ PEPTIDE_MASS_DICTIONARY = {
     'V': 99.1311
 }
 SLIDE_AMOUNT = SLIDING_WINDOW_SIZE / SLIDE_FRACTION
-DEUTERIUM_MASS = 1.00627
+DEUTERIUM_MASS_DIFFERENCE = 1.00627
 MINUTES_TO_SECONDS = 60
 MASS_OF_WATER = 18.01528
 MASS_OF_HYDROGEN = 1.007276

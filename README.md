@@ -11,7 +11,7 @@ Packages are premade code usable by other software. This program depends on a nu
 _**note: there are no numbers, any "l" character is the letter. It is recommended to copy paste the above line directly.**_
 
 ## Preparation
-Open the file named _**Parameters.py**_ or _**Parameters**_. This file is divided into five sections.
+Open the file named _**Parameters.py**_ or _**Parameters**_. You can use a text editor or an IDE such as PyCharm. This file is divided into five sections.
 
 In the first you change the input files to the names of your input files **(including the file extension e.g. .txt, .mzML)**.
 Leave the 'r' before the path to your input files. On Windows you can copy the path to a file by holding shift while right clicking the file.

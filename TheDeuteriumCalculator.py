@@ -1,3 +1,6 @@
+# Puchala W, Burdukiewicz M, Kistowski M, Dabrowska KA, Badaczewska-Dawid AE, Cysewski D and Dadlez M (2019). HaDeX:
+# Analysis and Visualisation of Hydrogen/Deuterium Exchange Mass Spectrometry Data. R package version 1.0.
+
 import numpy as np
 import pandas as pd
 import csv
@@ -29,9 +32,21 @@ def calculate_r_squared(x_data, y_data, *p):
 # fits a Guassian curve to ordered list parameter, returns r^2
 def fit_gaussian(y_data):
     x_data = list(range(len(y_data)))
+    consecutive_non_zeroes = 0
+    for y in y_data:
+        if consecutive_non_zeroes == 3:
+            break
+        if y > 0:
+            consecutive_non_zeroes += 1
+        else:
+            consecutive_non_zeroes = 0
+    if consecutive_non_zeroes != 3:
+        return "N/A"
     try:
         popt, pcov = curve_fit(gaussian_trend, x_data, y_data)
         r_squared = calculate_r_squared(x_data, y_data, *popt)
+        if r_squared < 0:
+            return 0
         return r_squared
     except RuntimeError:
         return "N/A"
@@ -121,6 +136,10 @@ def find_start_end(peptide: str, protein: str):
 
 
 # Removes any non-alpha characters from the protein sequence
+def get_ppm(mz1, mz2):
+    return abs(mz1 - mz2) / mz1 * 1000000
+
+
 def parse_protein(file: str):
     sequence = ""
     with open(file, 'r') as f:
@@ -130,11 +149,7 @@ def parse_protein(file: str):
                 if character.isalpha():
                     sequence += character
     return sequence
-
-
 # Returns the ppm difference between two m/z values
-def get_ppm(mz1, mz2):
-    return abs(mz1 - mz2) / mz1 * 1000000
 
 
 # Takes in a list of tuples and combines each where first elements is within a ppm tolerance
@@ -172,17 +187,19 @@ def compare(target, charge, array, full_array):
         return_list = [(array[midpoint][0], array[midpoint][1])]
         offset = 1
         while offset != 0 and (midpoint - offset) > 0:
-            ppm = abs(get_ppm(target, array[midpoint + offset][0] * charge))
+            peak = array[midpoint - offset]
+            ppm = abs(get_ppm(target, peak[0] * charge))
             if ppm <= CON.PPM_MATCH_TOLERANCE:
-                return_list.append((array[midpoint - offset][0], array[midpoint - offset][1]))
+                return_list.append((peak[0], peak[1]))
                 offset += 1
             else:
                 offset = 0
         offset = 1
         while offset != 0 and (midpoint + offset < len(array)):
-            ppm = abs(get_ppm(target, array[midpoint + offset][0] * charge))
+            peak = array[midpoint + offset]
+            ppm = abs(get_ppm(target, peak[0] * charge))
             if ppm <= CON.PPM_MATCH_TOLERANCE:
-                return_list.append((array[midpoint + offset][0], array[midpoint + offset][1]))
+                return_list.append((peak[0], peak[1]))
                 offset += 1
             else:
                 offset = 0
@@ -191,7 +208,9 @@ def compare(target, charge, array, full_array):
             if value > high_intensity[1]:
                 high_intensity = key, value
 
-        ppm_error = get_ppm(target, high_intensity[0] * charge)
+        ppm_error = abs(get_ppm(target, high_intensity[0] * charge))
+        if ppm_error > CON.PPM_MATCH_TOLERANCE:
+            print("PPM ERROR!")
         return ppm_error, high_intensity[0],  high_intensity[1]
 
     elif len(array) == 1 or len(array) == 0:
@@ -204,6 +223,7 @@ def compare(target, charge, array, full_array):
 
 # Converts scan number to retention time using the mzml file
 def set_retention_times(file: str):
+    # TODO Add in optional retention normalization
     retention_scan_dictionary = {}
     with mzml.read(file) as f:
         for scan in f:
@@ -223,9 +243,11 @@ class FullExperiment:
         self._time_points = time_points
         self._peptides = []
         self._output_files = {}
+        self.difference_deviations = {}
         for time in self._time_points:
             self.runs[time] = {True: {}, False: {}}
             self._output_files[time] = {True: {}, False: {}}
+            self.difference_deviations[time] = []
         self._file_names = []
         self.deviations_by_time = {}
         self.fractional_deviations_by_time = {}
@@ -330,13 +352,15 @@ class FullExperiment:
         for time in self._time_points:
             replications = []
             for replication in range(self._num_replications):
-                replications.append(self.runs[time][complexity][replication][index])
-            average = sum(replications) / self._num_replications
+                uptake = self.runs[time][complexity][replication][index]
+                if uptake != -1:
+                    replications.append(uptake)
+            average = sum(replications) / len(replications)
             averages.append(average)
-            if self._num_replications > 1:
+            if len(replications) > 1:
                 deviation = np.std(replications, ddof=1)
             else:
-                deviation = 0
+                deviation = -1
             self.add_deviation(time, deviation, pep)
             deviations.append(deviation)
 
@@ -374,8 +398,7 @@ class FullExperiment:
         print("Wrote to:", CON.RECOMMENDATION_TABLE_1, "\n")
 
     def generate_rows(self, df, time, complexity):
-        for pep in self._peptides:
-            print(pep)
+        for index, pep in enumerate(self._peptides):
             row = {}
             if complexity:
                 row["Protein state"] = "Complex"
@@ -391,14 +414,13 @@ class FullExperiment:
             row["Uptake (D)"] = pep.get_mass_shift()
             uptakes = []
             for replication in range(self._num_replications):
-                uptakes.append(self.get_uptake(time, complexity, replication))
+                uptakes.append(self.get_uptake(time, complexity, replication)[index])
             stdev = np.std(uptakes, ddof=1)
             row["Uptake SD (D)"] = stdev
             df = df.append(row, ignore_index=True)
         return df
 
     def generate_recommendation_table_2(self):
-        # TODO Add Second Output
         header = ["Protein state", "Sequence", "Start", "End", "Peptide mass (Da)", "Retention time (min)",
                   "HDX time (min)", "Uptake (D)", "Uptake SD (D)"]
         df = pd.DataFrame(columns=header)
@@ -408,29 +430,59 @@ class FullExperiment:
                 df = self.generate_rows(df, time, True)
         df.to_csv(CON.RECOMMENDATION_TABLE_2, index=False)
 
+    def generate_summary_table(self):
+        labels = ["HDX reaction details",
+                  "HDX time course",
+                  "HDX control samples",
+                  "Back-exchange (mean / IQR)",
+                  "# of Peptides",
+                  "Sequence coverage",
+                  "Average peptide length / Redundancy",
+                  "Replicates (biological or technical",
+                  "Repeatability",
+                  "Significant differences in HDX (delta HDX > X D)"]
+        time_strings = []
+        for time in self._time_points:
+            time_strings.append(str(time))
+        info = ["",
+                ",".join(time_strings),
+                "",
+                "",
+                len(self._peptides),
+                "",
+                "",
+                self._num_replications,
+                "",
+                ""]
+        data = {"Data Set": labels, "Free": info, "Complex": info}
+        df = pd.DataFrame(data=data)
+        df.to_csv(CON.SUMMARY_TABLE, index=False)
+
     def generate_output(self):
         print("\nGenerating Output file(s)")
         self.generate_recommendation_table_1()
-        if len(self._time_points) > 1:
-            self.generate_recommendation_table_2()
+        self.generate_recommendation_table_2()
         if self._is_differential:
             self.generate_differential_woods_plot(CON.RECOMMENDATION_TABLE_1, CON.WOODS_PLOT_TITLE)
+            self.generate_summary_table()
 
     # confidence is between 0 and 1, df is
     def calculate_confidence_limit(self, time, fractional):
-        df = (self._num_replications * 2) - 1
-        num_replications = self._num_replications * 2
+        n = self._num_replications * 2
+        df = n - 1
         if fractional:
             deviations = self.fractional_deviations_by_time[time]
         else:
             deviations = self.deviations_by_time[time]
         if not deviations:
             raise ValueError("add deviations before calculating confidence limit.")
-        stdev = sum(deviations) / len(deviations)
+        differences = self.difference_deviations[time]
+        stdev = np.std(differences, ddof=1)
         alpha = 1 - CON.WOODS_PLOT_CONFIDENCE
         critical_value = stats.t.ppf(1 - (alpha / 2), df)
-        print("Stdev:", stdev, "replications:", num_replications, "critical v.:", critical_value)
-        return stdev / (num_replications ** 0.5) * critical_value
+        print("Stdev:", stdev, "Replications:", n, "critical v.:", critical_value)
+        standard_error = stdev / n ** 0.5
+        return standard_error * critical_value
 
     # Saves a plot of name "file"_"time"s.png with a given title. can be fractional or absolute
     def generate_differential_woods_plot(self, file: str, title: str, fractional=True):
@@ -440,25 +492,55 @@ class FullExperiment:
         if fractional:
             plt.ylabel("Relative Fractional Uptake")
         for time in self._time_points:
-            confidence = self.calculate_confidence_limit(time, fractional)
-            print("Confidence:", confidence)
             plt.plot((0, len(self.protein)), (0, 0), 'k:')
-            plt.plot((0, len(self.protein)), (confidence, confidence), 'r--')
-            plt.plot((0, len(self.protein)), (-confidence, -confidence), 'r--')
             df = pd.read_csv(file, header=[0, 1])
             time_col = str(time) + " min"
-            for _, row in df.iterrows():
-                x = (row["Start"]["Start"], row["End"]["End"])
-                difference = row["Uptake COMPLEX (D)"][time_col] - row["Uptake FREE (D)"][time_col]
-                if fractional:
-                    difference /= sequence_to_max_deuterium(row['Sequence']['Sequence'])
-                y = (difference, difference)
-                plt.plot(x, y, 'k')
-            plot_file_name = CON.WOODS_PLOT_NAME + "_" + str(time) + "s.png"
-            plt.savefig(plot_file_name, dpi=600)
 
-    def coverage_calculator(self):
-        pass
+            for _, row in df.iterrows():
+                free_deviation = row["Uptake error (SD) - COMPLEX (D)"][time_col]
+                complex_deviation = row["Uptake error (SD) - FREE (D)"][time_col]
+                difference = (free_deviation ** 2 + complex_deviation ** 2) ** 0.5
+                length = sequence_to_max_deuterium(row["Sequence"]["Sequence"])
+                self.difference_deviations[time].append(difference / length)
+            confidence = self.calculate_confidence_limit(time, fractional)
+            print("Confidence:", confidence)
+            plt.plot((0, len(self.protein)), (confidence, confidence), '#cc0000')
+            plt.plot((0, len(self.protein)), (-confidence, -confidence), '#cc0000')
+            output = {
+                'Sequence': [],
+                'Start': [],
+                'End': [],
+                'Relative Uptake': [],
+                'Relative Fractional Uptake': [],
+                'Significant': []
+            }
+            for _, row in df.iterrows():
+                sequence = row['Sequence']['Sequence']
+                start, end = row["Start"]["Start"], row["End"]["End"]
+                x = start, end
+                difference = row["Uptake COMPLEX (D)"][time_col] - row["Uptake FREE (D)"][time_col]
+                absolute_difference = difference
+                if fractional:
+                    difference /= sequence_to_max_deuterium(sequence)
+                if abs(difference) > confidence:
+                    line_color = 'r'
+                else:
+                    line_color = 'k'
+                y = (difference, difference)
+                plt.plot(x, y, line_color)
+                output['Sequence'].append(sequence)
+                output['Start'].append(start)
+                output['End'].append(end)
+                output['Relative Uptake'].append(absolute_difference)
+                output['Relative Fractional Uptake'].append(difference)
+                if abs(difference > confidence):
+                    output['Significant'].append("Yes")
+                else:
+                    output['Significant'].append("No")
+            data_frame = pd.DataFrame(data=output)
+            data_frame.to_csv("Woods_Table.csv", index=False)
+            plot_file_name = CON.WOODS_PLOT_NAME + "_" + str(time) + "s.png"
+            plt.savefig(plot_file_name, dpi=600, pad_inches=0)
 
 
 ##########################################################################
@@ -640,8 +722,9 @@ class ExperimentalRun:
         tuple_list.sort(key=lambda x: x[0])
         # searches for a match for each deuteration
         for det in range(pep.get_max_deuterium() + 1):
-            ppm_error, mz, intensity = compare(pep_mass + det * CON.DEUTERIUM_MASS,
+            ppm_error, mz, intensity = compare(pep_mass + det * CON.DEUTERIUM_MASS_DIFFERENCE,
                                                charge, tuple_list, tuple_list)
+
             if ppm_error != 0:
                 pep.set_deuterium(det, mz, intensity, ppm_error)
         pep.set_weighted_mass()
@@ -674,7 +757,7 @@ class ExperimentalRun:
             csv_writer = csv.writer(f)
             if not output_exists:
                 header = ["Start", "End", "Sequence", "Charge", "SequenceMz", "Complex",
-                          "Deuterium", "RT", "Mz", "Intensity", "PpmError", "Average",
+                          "Deuterium", "RT", "Mz", "Intensity", "PpmError", "Average", "Shift",
                           "Gaussian Fit"]
                 csv_writer.writerow(header)
             lines = []
@@ -788,7 +871,7 @@ class Peptide:
         for i in range(self.get_max_deuterium() + 1):
 
             mz, intensity, ppm = self.get_deuterium(i)
-            line = ["", "", "", 0, 0, "", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+            line = ["", "", "", 0, 0, "", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
             line[0] = self._start
             line[1] = self._end
             line[2] = self._sequence
@@ -801,20 +884,10 @@ class Peptide:
             line[9] = intensity
             line[10] = ppm
             line[11] = self._weighted_mass_to_charge
-            line[12] = self._fit
+            line[12] = self._mass_shift
+            line[13] = self._fit
             line_list.append(line)
         return line_list
-
-    # returns peptide data for the summary
-    def get_table_row(self):
-        line = ["", "", "", 0, 0, 0]
-        line[0] = self._start
-        line[1] = self._end
-        line[2] = self._sequence
-        line[3] = self._average_mass
-        line[4] = (self._rt_end + self._rt_start) / 2 / CON.MINUTES_TO_SECONDS
-        line[5] = self._mass_shift
-        return line
 
     def get_scan(self):
         return self._scan
@@ -864,10 +937,11 @@ class Peptide:
         else:
             mass /= total_intensity
         self._weighted_mass_to_charge = mass
-        if self._weighted_mass_to_charge == 0:
-            print("No matches found for:", self._sequence)
         weighted_mass = self._weighted_mass_to_charge - CON.MASS_OF_HYDROGEN
         self._mass_shift = weighted_mass * self._charge - self._average_mass
+        if total_intensity == 0:
+            self._weighted_mass_to_charge = -1
+            self._mass_shift = -1
 
     # calculates the average mass from the sequence (Uses values in the PARAMETERS.py file)
     def set_average_mass(self):
