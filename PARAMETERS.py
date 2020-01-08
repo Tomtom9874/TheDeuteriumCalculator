@@ -22,7 +22,7 @@ RETENTION_TOLERANCE_OFFSET = -120
 # Woods' Plot
 WOODS_PLOT_NAME = r"Outputs\WoodsPlot"  # no file extension
 WOODS_PLOT_TITLE = r"Differential Fractional Uptake Woods' Plot"  # Title on the woods' plot
-
+WOODS_TABLE_NAME = r"Outputs\WoodsTable"
 # Constants (Do not change)
 FREE = "Free"
 COMPLEX = "Complex"

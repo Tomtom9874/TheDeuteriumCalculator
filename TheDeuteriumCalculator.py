@@ -537,7 +537,7 @@ class FullExperiment:
                 else:
                     output['Significant'].append("No")
             data_frame = pd.DataFrame(data=output)
-            data_frame.to_csv("Woods_Table.csv", index=False)
+            data_frame.to_csv(CON.WOODS_TABLE_NAME + ".csv", index=False)
             plot_file_name = CON.WOODS_PLOT_NAME + "_" + str(time) + "s.png"
             plt.savefig(plot_file_name, dpi=600, pad_inches=0)
 

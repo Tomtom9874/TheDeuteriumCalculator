@@ -78,7 +78,6 @@ At that point detailed outputs will be generated which contain information on ev
 Step two can either be selected immediately or one can exit the program and manually edit data. This can be acheived by changing the intensity of any points that are incorrect to zero. 
 **If changes are made to the data, the program must be restarted before they can be recognized.** Step two will generate the final outputs, including summary data and the Woods' Plot. 
 
-***
 ## Notes
 
 * Step one only needs to be completed once per experiment, unless user error is noticed such as incorrect selection of mzML files.
