@@ -12,6 +12,8 @@ from datetime import datetime
 from os import path
 from matplotlib import pyplot as plt
 from scipy.optimize import OptimizeWarning
+import warnings
+warnings.filterwarnings("ignore", message="Covariance of the parameters could not be estimated")
 
 
 # checks whether an output directory exists, ignores actual filename
@@ -95,16 +97,16 @@ def check_parameters():
     if not check_extension(CON.PROTEIN_SEQUENCE_FILE, "txt"):
         raise NameError("PROTEIN_SEQUENCE_FILE must be a .txt, fix and restart the program.")
     if CON.PPM_MATCH_TOLERANCE > 100:
-        raise UserWarning("PPM_MATCH_TOLERANCE is set to {}; this is high".format(CON.PPM_MATCH_TOLERANCE))
+        warnings.warn(("PPM_MATCH_TOLERANCE is set to {}; this is high".format(CON.PPM_MATCH_TOLERANCE)))
     if CON.SLIDING_WINDOW_PPM_TOLERANCE > 10:
-        raise UserWarning("SLIDING_WINDOW_PPM_TOLERANCE is set to {}, "
-                          "recommendation is under 10.".format(CON.SLIDING_WINDOW_PPM_TOLERANCE))
+        warnings.warn(("SLIDING_WINDOW_PPM_TOLERANCE is set to {}, "
+                       "recommendation is under 10.".format(CON.SLIDING_WINDOW_PPM_TOLERANCE)))
     if CON.SLIDING_WINDOW_SIZE % CON.SLIDE_AMOUNT != 0:
         raise ValueError("SLIDING_WINDOW_SIZE must be divisible by SLIDE_AMOUNT")
     if CON.RETENTION_TOLERANCE < 10:
         raise ValueError("RETENTION_TOLERANCE must be a number over 10, greater than 30 recommended.")
     if CON.RETENTION_TOLERANCE < 30:
-        raise UserWarning("A retention tolerance of greater than 30s is recommended")
+        warnings.warn("A retention tolerance of greater than 30s is recommended")
     if not 0 < CON.WOODS_PLOT_CONFIDENCE < 1:
         raise ValueError("Woods' Plot Confidence must be between 0 and 1")
 
@@ -325,10 +327,12 @@ class FullExperiment:
         print("Enter path to mzML for time:", time, "replication:",
               replication + 1, "complexity:", complexity)
         file = ""
-        while not path.exists(file):
+        while not path.exists(file) or not check_extension(file, ".mzml"):
             file = get_path_input()
             if not path.exists(file):
                 print("Not a valid path name.")
+        if file in self._file_names:
+            warnings.warn("This file has already been added, if this is an error please restart the program.")
         self._file_names.append(file)
 
     # Adds a new experimental run, adds the peptides on the first run
@@ -373,7 +377,10 @@ class FullExperiment:
                 uptake = self.runs[time][complexity][replication][index]
                 if uptake != -1:
                     replications.append(uptake)
-            average = sum(replications) / len(replications)
+            if len(replications) != 0:
+                average = sum(replications) / len(replications)
+            else:
+                average = -1
             averages.append(average)
             if len(replications) > 1:
                 deviation = np.std(replications, ddof=1)
@@ -1028,8 +1035,8 @@ def get_num_replications():
 
 def show_menu():
     print("Please enter the number of one of the following selections:")
-    print("(1) Generate detailed output from mzML")
-    print("(2) Generate summary and figures from detailed outputs")
+    print("(1) Detailed output from mzML (Only used once per experiment)")
+    print("(2) Final summary and figures from detailed outputs")
     print("(3) Quit")
 
 
