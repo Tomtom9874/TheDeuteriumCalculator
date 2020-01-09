@@ -4,3 +4,6 @@
 Input.csv
 *.png
 *.txt
+test.py
+.gitignore
+.gitattributes
