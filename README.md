@@ -1,8 +1,9 @@
 # README
 ## Python Installation
-Head over to <a href="https://www.python.org/downloads/">Python.org</a> to install Python. Currently the supported version is: 3.8.1.
+Head over to <a href="https://www.python.org/downloads/">Python.org</a> to install Python. Currently the supported version is: 3.8.1. 
+If you already have Python installed you may skip this step. It is recommended to update to this version however.
 
-The only change to the settings you need to make is checking the box which adds Python to the Path.
+*The only change to the settings you need to make is checking the box which adds Python to the Path.*
 
 Packages are premade code usable by other software. This program depends on a number of them which can all be installed by using a single command within the command prompt (Open using windows+r, type cmd):
 
@@ -11,18 +12,22 @@ Packages are premade code usable by other software. This program depends on a nu
 _**note: there are no numbers, any "l" character is the letter. It is recommended to copy paste the above line directly.**_
 
 ## Preparation
-Open the file named _**Parameters.py**_ or _**Parameters**_. You can use a text editor or an IDE such as PyCharm. This file is divided into five sections.
+Open the file named _**Parameters.py**_ or _**Parameters**_. One can use a text editor such as "notepad" or an IDE such as PyCharm. This file is divided into five sections.
 
 In the first you change the input files to the names of your input files **(including the file extension e.g. .txt, .mzML)**.
 Leave the 'r' before the path to your input files. On Windows you can copy the path to a file by holding shift while right clicking the file.
 
 _**Identification mzML File-**_ The mzML file which you performed the database search on which found the sequences you intend to search.
+*This is not the expermintal mzML(s). These will be added when the program is run.*
 
 _**Identification CSV File-**_ The CSV file created from the output of your data base search. It should have the following columns (with correct name): ID, ScanNum, Precursor, Charge, Peptide
+An identification file is included in the zip file, however this only has the headers. The rest of the information should be populated with the results of your peptide identification software. 
 
-**ID** is a unique key for each sequence and is simply a column of ascending integers. **ScanNum** is the scan where the peptide was identified. 
+**ID** is a unique key for each sequence and is simply a column of ascending integers. 
+**ScanNum** is the scan where the peptide was identified. 
+**Peptide** is the sequence of amino acids.
 **Precursor** is the m/z of the identified sequence, 
-**Charge** is the z integer value, and **Peptide** is the sequence of amino acids.
+**Charge** is the z integer value
 
 _**Protein Sequence File**_ This is a .txt file which simply contains the string of characters representing the amino acids in the protein being examined.
 
@@ -45,21 +50,19 @@ _**Modify the constants with care, this can lead to incorrect evaluation.**_
 ***
 ## Running Software
 
-In the command prompt navigate to the folder containing the program and associated files. This can be done by repeatedly typing "cd" followed by a space and the folder you wish to enter. Then type run the program by typing "python TheDeuteriumCalculator.py"
+In the command prompt navigate to the folder containing the program and associated files. This can be done by repeatedly typing "cd" followed by a space and the name of the folder. Then run the program by typing "python TheDeuteriumCalculator.py"
 
 **Example**
 
-If the program was stored at "C:\Users\User\Programs\DeuterationCalculator\TheDeuteriumCalculator.py"
-
+If the program was stored at "C:\Users\User\Programs\DeuteriumCalculator\TheDeuteriumCalculator.py"
 
 The command prompt begins in C:\Users\User
 
 Type `"cd Programs"`
 
-Type `"cd DueterationCalculator"`
+Type `"cd DueteriumCalculator"`
 
 In this directory
-
 
 Type `"python TheDeuteriumCalculator.py"`
 
@@ -75,11 +78,13 @@ This will bring you to the main menu. If this is the first time running the prog
 You will be prompted for the path to each mzML file. You can copy the path on Windows by holding shift and right clicking the file and selecting "Copy as Path." The program will then begin processing the data automatically until this step is finished.
 At that point detailed outputs will be generated which contain information on every peak matched. 
 
-Step two can either be selected immediately or one can exit the program and manually edit data. This can be acheived by changing the intensity of any points that are incorrect to zero. 
+Step two can either be selected immediately or the program may be exited allowing for manual editing of the data. This can be acheived by changing the intensity of any points that are incorrect to zero. 
 **If changes are made to the data, the program must be restarted before they can be recognized.** Step two will generate the final outputs, including summary data and the Woods' Plot. 
 
 ## Notes
 
 * Step one only needs to be completed once per experiment, unless user error is noticed such as incorrect selection of mzML files.
-* If you are working on multiple experiments simultaneously, one must be careful to change the names of any outputs or move them, as they will otherwise be overwritten.
+* When working on multiple experiments simultaneously the names of output files must be changed, or the files moved, or else they will be overwritten.
 * Always close any existing output files before running the program. 
+* For every path in the Parameters.py file make sure to wrap the path in quotes and have an 'r' before the open quotes.
+* Ensure that all file endings match what is requested in the Parameters.py (Some must have no file extension).

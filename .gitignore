@@ -1,6 +1,6 @@
 **/
 *.xlsx
 *.mzml
-*.csv
+Input.csv
 *.png
 *.txt

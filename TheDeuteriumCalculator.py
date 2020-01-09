@@ -13,6 +13,7 @@ from os import path
 from matplotlib import pyplot as plt
 from scipy.optimize import OptimizeWarning
 
+
 # checks whether an output directory exists, ignores actual filename
 def check_directory(file_path):
     end_path = 0
@@ -21,7 +22,7 @@ def check_directory(file_path):
             end_path = index
     if end_path > 0:
         if not path.exists(file_path[0:end_path]):
-            raise FileExistsError("Output directory does not exit.")
+            raise FileExistsError("ERROR: Output directory does not exit.")
 
 
 # fit_gaussian helper function
@@ -74,41 +75,38 @@ def sequence_to_max_deuterium(sequence: str):
     return max_deuterium
 
 
+def check_output_extension(file: str):
+    for letter in file:
+        if letter == '.':
+            raise NameError("Output files should not have an extension, fix and restart the program.")
+
+
 # Checks that user PARAMETER configuration is (relatively) correct
 def check_parameters():
+    output_files = [CON.RECOMMENDATION_TABLE_1, CON.RECOMMENDATION_TABLE_2, CON.SUMMARY_TABLE, CON.WOODS_PLOT_NAME,
+                    CON.FULL_HDX_OUTPUT, CON.WOODS_TABLE_NAME]
+    for file in output_files:
+        check_output_extension(file)
+        check_directory(file)
     if not check_extension(CON.IDENTIFICATION_MZML_FILE, "mzml"):
-        print("ERROR: IDENTIFICATION_MZML_FILE must be a .mzml")
+        raise NameError("IDENTIFICATION_MZML_FILE must be a .mzml, fix and restart the program.")
     if not check_extension(CON.IDENTIFICATION_CSV_FILE, "csv"):
-        print("ERROR: IDENTIFICATION_CSV_FILE must be a .csv")
+        raise NameError("IDENTIFICATION_CSV_FILE must be a .csv, fix and restart the program.")
     if not check_extension(CON.PROTEIN_SEQUENCE_FILE, "txt"):
-        print("ERROR: PROTEIN_SEQUENCE_FILE must be a .txt")
-    for letter in CON.FULL_HDX_OUTPUT:
-        if letter == '.':
-            print("ERROR: FULL_HDX_OUTPUT should not have file extension")
-    if not check_extension(CON.RECOMMENDATION_TABLE_1, "csv"):
-        print("ERROR: SUMMARY_TABLE_1 must be a .csv")
+        raise NameError("PROTEIN_SEQUENCE_FILE must be a .txt, fix and restart the program.")
     if CON.PPM_MATCH_TOLERANCE > 100:
-        print("WARNING: PPM_MATCH_TOLERANCE is set to {}, "
-              "this is high".format(CON.PPM_MATCH_TOLERANCE))
+        raise UserWarning("PPM_MATCH_TOLERANCE is set to {}; this is high".format(CON.PPM_MATCH_TOLERANCE))
     if CON.SLIDING_WINDOW_PPM_TOLERANCE > 10:
-        print("WARNING: SLIDING_WINDOW_PPM_TOLERANCE is set to {}, "
-              "recommendation is under 10.".format(CON.SLIDING_WINDOW_PPM_TOLERANCE))
+        raise UserWarning("SLIDING_WINDOW_PPM_TOLERANCE is set to {}, "
+                          "recommendation is under 10.".format(CON.SLIDING_WINDOW_PPM_TOLERANCE))
     if CON.SLIDING_WINDOW_SIZE % CON.SLIDE_AMOUNT != 0:
-        print("ERROR: SLIDING_WINDOW_SIZE must be divisible by SLIDE_AMOUNT")
-    if CON.RETENTION_TOLERANCE <= 0:
-        print("ERROR: RETENTION_TOLERANCE must be a positive number, "
-              "greater than 30 recommended.")
+        raise ValueError("SLIDING_WINDOW_SIZE must be divisible by SLIDE_AMOUNT")
+    if CON.RETENTION_TOLERANCE < 10:
+        raise ValueError("RETENTION_TOLERANCE must be a number over 10, greater than 30 recommended.")
     if CON.RETENTION_TOLERANCE < 30:
-        print("WARNING: A retention tolerance of greater than 30 is recommended")
+        raise UserWarning("A retention tolerance of greater than 30s is recommended")
     if not 0 < CON.WOODS_PLOT_CONFIDENCE < 1:
-        print("confidence should be between 0 and 1")
-        raise ValueError
-    check_directory(CON.FULL_HDX_OUTPUT)
-    check_directory(CON.RECOMMENDATION_TABLE_1)
-    check_directory(CON.RECOMMENDATION_TABLE_2)
-    check_directory(CON.SUMMARY_TABLE)
-    check_directory(CON.WOODS_PLOT_NAME)
-    check_directory(CON.WOODS_TABLE_NAME)
+        raise ValueError("Woods' Plot Confidence must be between 0 and 1")
 
 
 def check_extension(string, extension):
@@ -415,7 +413,6 @@ class FullExperiment:
             csv_writer.writerow(bot_header)
             for line in peptide_lines:
                 csv_writer.writerow(line)
-        print("Wrote to:", CON.RECOMMENDATION_TABLE_1, "\n")
 
     def generate_rows(self, df, time, complexity):
         for index, pep in enumerate(self._peptides):
@@ -448,7 +445,7 @@ class FullExperiment:
             df = self.generate_rows(df, time, False)
             if self._is_differential:
                 df = self.generate_rows(df, time, True)
-        df.to_csv(CON.RECOMMENDATION_TABLE_2, index=False)
+        df.to_csv(CON.RECOMMENDATION_TABLE_2 + ".csv", index=False)
 
     def generate_summary_table(self):
         labels = ["HDX reaction details",
@@ -479,11 +476,11 @@ class FullExperiment:
         df.to_csv(CON.SUMMARY_TABLE, index=False)
 
     def generate_output(self):
-        print("\nGenerating Output file(s)")
         self.generate_recommendation_table_1()
         self.generate_recommendation_table_2()
         if self._is_differential:
             self.generate_differential_woods_plot(CON.RECOMMENDATION_TABLE_1, CON.WOODS_PLOT_TITLE)
+            self.generate_differential_woods_plot(CON.RECOMMENDATION_TABLE_1, CON.WOODS_PLOT_TITLE, False)
             self.generate_summary_table()
 
     # confidence is between 0 and 1, df is
@@ -500,15 +497,17 @@ class FullExperiment:
         stdev = np.std(differences, ddof=1)
         alpha = 1 - CON.WOODS_PLOT_CONFIDENCE
         critical_value = stats.t.ppf(1 - (alpha / 2), df)
-        print("Stdev:", stdev, "Replications:", n, "critical v.:", critical_value)
         standard_error = stdev / n ** 0.5
         return standard_error * critical_value
 
     # Saves a plot of name "file"_"time"s.png with a given title. can be fractional or absolute
     def generate_differential_woods_plot(self, file: str, title: str, fractional=True):
+        plt.figure(figsize=(CON.WOODS_PLOT_WIDTH, CON.WOODS_PLOT_HEIGHT))
         plt.title(title)
         plt.xlabel("Sequence")
         plt.ylabel("Relative Uptake (Da)")
+        plt.tight_layout()
+        maroon = '#cc0000'
         if fractional:
             plt.ylabel("Relative Fractional Uptake")
         for time in self._time_points:
@@ -521,11 +520,12 @@ class FullExperiment:
                 complex_deviation = row["Uptake error (SD) - FREE (D)"][time_col]
                 difference = (free_deviation ** 2 + complex_deviation ** 2) ** 0.5
                 length = sequence_to_max_deuterium(row["Sequence"]["Sequence"])
-                self.difference_deviations[time].append(difference / length)
+                if fractional:
+                    difference /= length
+                self.difference_deviations[time].append(difference)
             confidence = self.calculate_confidence_limit(time, fractional)
-            print("Confidence:", confidence)
-            plt.plot((0, len(self.protein)), (confidence, confidence), '#cc0000')
-            plt.plot((0, len(self.protein)), (-confidence, -confidence), '#cc0000')
+            plt.plot((0, len(self.protein)), (confidence, confidence), 'r')
+            plt.plot((0, len(self.protein)), (-confidence, -confidence), 'r')
             output = {
                 'Sequence': [],
                 'Start': [],
@@ -543,7 +543,7 @@ class FullExperiment:
                 if fractional:
                     difference /= sequence_to_max_deuterium(sequence)
                 if abs(difference) > confidence:
-                    line_color = 'r'
+                    line_color = maroon
                 else:
                     line_color = 'k'
                 y = (difference, difference)
@@ -559,8 +559,11 @@ class FullExperiment:
                     output['Significant'].append("No")
             data_frame = pd.DataFrame(data=output)
             data_frame.to_csv(CON.WOODS_TABLE_NAME + ".csv", index=False)
-            plot_file_name = CON.WOODS_PLOT_NAME + "_" + str(time) + "s.png"
-            plt.savefig(plot_file_name, dpi=600, pad_inches=0)
+            plot_file_name = CON.WOODS_PLOT_NAME + "_" + str(time) + "s"
+            if fractional:
+                plot_file_name += "_fractional"
+            plot_file_name += ".png"
+            plt.savefig(plot_file_name)
 
 
 ##########################################################################
@@ -771,7 +774,7 @@ class ExperimentalRun:
 
     # outputs tabular info of HDX results to .csv
     def write_hdx(self, file: str):
-        output_exists = path.exists(CON.FULL_HDX_OUTPUT)
+        output_exists = path.exists(CON.FULL_HDX_OUTPUT + ".csv")
 
         with open(file, "w+", newline='') as f:
             csv_writer = csv.writer(f)
@@ -787,7 +790,6 @@ class ExperimentalRun:
                     lines.append(line)
             for line in lines:
                 csv_writer.writerow(line)
-            print("Wrote to:", file)
 
 
 def generate_output_name(time, is_complex, replication):
@@ -992,6 +994,9 @@ def get_time_points():
                 pass
             if usr_input < 0:
                 print("Please enter 0 or a positive integer.")
+            if usr_input in time_points:
+                print("That time point has already been entered.")
+                usr_input = -1
         time_points.append(usr_input)
     return time_points
 
@@ -1030,12 +1035,12 @@ def show_menu():
 
 ##############################################################################
 def main():
+    check_parameters()
     # Get User Input
     time_points = get_time_points()
     is_differential = get_is_differential()
     num_replications = get_num_replications()
     print()
-    check_parameters()
     menu_input = None
     while menu_input != 'q':
         show_menu()
@@ -1052,6 +1057,7 @@ def main():
                 experiment.add_runs(time)
             print("Total Time Elapsed:", datetime.now() - start_time)
         if menu_input == '2':
+            print("\nGenerating Output file(s)")
             experiment = FullExperiment(time_points, is_differential, num_replications)
             experiment.read_runs()
             experiment.generate_output()
