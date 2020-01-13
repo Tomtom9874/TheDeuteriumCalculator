@@ -22,8 +22,8 @@ WOODS_PLOT_CONFIDENCE = 0.99  # Use to calculate confidence interval for differe
 RETENTION_TOLERANCE_OFFSET = -120
 WOODS_PLOT_TITLE = r"Differential Uptake Woods' Plot"  # Title on the woods' plot
 FRACTIONAL_WOODS_PLOT_TITLE = r"Differential Fractional Uptake Woods' Plot"  # Title on the fractional woods' plot
-WOODS_PLOT_HEIGHT = 3
-WOODS_PLOT_WIDTH = 4
+WOODS_PLOT_HEIGHT = 4
+WOODS_PLOT_WIDTH = 6
 
 # Constants (Do not change)
 FREE = "Free"

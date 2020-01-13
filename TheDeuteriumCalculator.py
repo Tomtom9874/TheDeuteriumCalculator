@@ -1,6 +1,3 @@
-# Puchala W, Burdukiewicz M, Kistowski M, Dabrowska KA, Badaczewska-Dawid AE, Cysewski D and Dadlez M (2019). HaDeX:
-# Analysis and Visualisation of Hydrogen/Deuterium Exchange Mass Spectrometry Data. R package version 1.0.
-
 import numpy as np
 import pandas as pd
 import csv
@@ -27,12 +24,12 @@ def check_directory(file_path):
             raise FileExistsError("ERROR: Output directory does not exit.")
 
 
-# fit_gaussian helper function
+# returns a gaussian with the given parameters
 def gaussian_trend(x, a, sigma, mean):
     return a * np.exp(-(x - mean) ** 2 / (2 * sigma ** 2))
 
 
-# fit_gaussian helper function
+# returns the r^2 for a set of data compared to its guassian fit.
 def calculate_r_squared(x_data, y_data, *p):
     y_predicted = gaussian_trend(x_data, *p)
     residuals = (y_predicted - y_data) ** 2
@@ -69,6 +66,7 @@ def fit_gaussian(y_data):
 
 
 # returns the maximum possible deuterium for a given sequence
+# This is represented as the # of amino acids - 1 - the number of proline molecules.
 def sequence_to_max_deuterium(sequence: str):
     max_deuterium = len(sequence) - 1
     for letter in sequence:
@@ -172,11 +170,16 @@ def parse_protein(file: str):
 
 
 # Takes in a list of tuples and combines each where first elements is within a ppm tolerance
+# This is used to combine peaks of the exact same mz in consecutive nearby scans.
 def tuple_combine(some_list):
     changed = True
     just_changed = False
     start_list = sorted(some_list, key=lambda x: x[0])
     new_list = []
+    for i in range(len(start_list)):
+        tup = (start_list[i][0], start_list[i][1], 1)
+        start_list[i] = tup
+
     while changed and len(start_list) != 0:
         changed = False
         for i in range(len(start_list) - 1):
@@ -185,8 +188,14 @@ def tuple_combine(some_list):
                 continue
             ppm = abs(get_ppm(start_list[i][0], start_list[i+1][0]))
             if ppm < CON.SLIDING_WINDOW_PPM_TOLERANCE:
-                new_list.append((((start_list[i][0] + start_list[i+1][0]) / 2),
-                                 start_list[i][1] + start_list[i+1][1]))
+                count1 = start_list[i][2]
+                count2 = start_list[i + 1][2]
+                mz1 = start_list[i][0] * count1
+                mz2 = start_list[i + 1][0] * count2
+                count = count1 + count2
+                mz = (mz1 + mz2) / count
+                intensity = start_list[i][1] + start_list[i + 1][1]
+                new_list.append((mz, intensity, count))
                 changed = True
                 just_changed = True
             else:
@@ -206,7 +215,7 @@ def compare(target, charge, array, full_array):
     if abs(get_ppm(target, array[midpoint][0] * charge)) <= CON.PPM_MATCH_TOLERANCE:
         return_list = [(array[midpoint][0], array[midpoint][1])]
         offset = 1
-        # These two while loops then check any adjacent peask
+        # These two while loops then check any adjacent peak
         while offset != 0 and (midpoint - offset) > 0:
             peak = array[midpoint - offset]
             ppm = abs(get_ppm(target, peak[0] * charge))
@@ -707,7 +716,7 @@ class ExperimentalRun:
         print("RT {}s / {}s".format(0, int(ret)))
         for rt, tuple_list in window_dictionary.items():
             window_dictionary[rt] = tuple_combine(tuple_list)
-            if int(float(rt[0])) != 0 and int(float(rt[0])) % 600 == 0:
+            if int(float(rt[0])) != 0 and int(float(rt[0])) % 100 == 0:
                 print("RT {}s / {}s".format(int(rt[0]), int(ret)))
         print("Sliding Window Complete")
         print("Time elapsed:", datetime.now() - start_time, "\n")
@@ -754,7 +763,6 @@ class ExperimentalRun:
         for det in range(pep.get_max_deuterium() + 1):
             ppm_error, mz, intensity = compare(pep_mass + det * CON.DEUTERIUM_MASS_DIFFERENCE,
                                                charge, tuple_list, tuple_list)
-
             if ppm_error != 0:
                 pep.set_deuterium(det, mz, intensity, ppm_error)
         pep.set_weighted_mass()
@@ -1064,10 +1072,11 @@ def main():
                 experiment.add_runs(time)
             print("Total Time Elapsed:", datetime.now() - start_time)
         if menu_input == '2':
-            print("\nGenerating Output file(s)")
+            print("Generating Output files")
             experiment = FullExperiment(time_points, is_differential, num_replications)
             experiment.read_runs()
             experiment.generate_output()
+            print("\nSuccess!\n")
         if menu_input == '3':
             quit()
 

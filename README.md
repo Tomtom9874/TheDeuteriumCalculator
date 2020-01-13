@@ -1,15 +1,28 @@
 # README
+Author: Thomas Welborn
+
+Organization: University of Oklahoma
+
+Version 1.0.0 
+
+Last Update: January 9, 2020
+
 ## Python Installation
 Head over to <a href="https://www.python.org/downloads/">Python.org</a> to install Python. Currently the supported version is: 3.8.1. 
 If you already have Python installed you may skip this step. It is recommended to update to this version however.
 
 *The only change to the settings you need to make is checking the box which adds Python to the Path.*
 
+## Package Installation
 Packages are premade code usable by other software. This program depends on a number of them which can all be installed by using a single command within the command prompt (Open using windows+r, type cmd):
 
 `python -m pip install lxml pyteomics numpy scipy pandas matplotlib`
 
 _**note: there are no numbers, any "l" character is the letter. It is recommended to copy paste the above line directly.**_
+
+## mzML Creation
+The ProteoWizard tool package contains the msConvert tool which is used to change vendor file types to mzML files. At the 
+<a href=http://proteowizard.sourceforge.net/download.html>ProteoWizard Download Page</a> you can download this package in order to use msConvert.
 
 ## Preparation
 Open the file named _**Parameters.py**_ or _**Parameters**_. One can use a text editor such as "notepad" or an IDE such as PyCharm. This file is divided into five sections.
@@ -60,7 +73,7 @@ The command prompt begins in C:\Users\User
 
 Type `"cd Programs"`
 
-Type `"cd DueteriumCalculator"`
+Type `"cd DeuteriumCalculator"`
 
 In this directory
 
@@ -81,10 +94,14 @@ At that point detailed outputs will be generated which contain information on ev
 Step two can either be selected immediately or the program may be exited allowing for manual editing of the data. This can be acheived by changing the intensity of any points that are incorrect to zero. 
 **If changes are made to the data, the program must be restarted before they can be recognized.** Step two will generate the final outputs, including summary data and the Woods' Plot. 
 
-## Notes
+## Notes and Troubleshooting
 
 * Step one only needs to be completed once per experiment, unless user error is noticed such as incorrect selection of mzML files.
 * When working on multiple experiments simultaneously the names of output files must be changed, or the files moved, or else they will be overwritten.
 * Always close any existing output files before running the program. 
 * For every path in the Parameters.py file make sure to wrap the path in quotes and have an 'r' before the open quotes.
 * Ensure that all file endings match what is requested in the Parameters.py (Some must have no file extension).
+* If you get a "Memory Error" there are two options. Reduce the data complexity by making the sliding window larger, or the slide fraction smaller; or you can
+install the 64 bit version of python which has higher memory allowances. <a href="https://www.python.org/downloads/windows/">Windows</a>
+Use the option under 3.8.1 named "Download Windows x86-64 executable installer" Make sure to check add to path again, and you must 
+reinstall the packages using the above command.
