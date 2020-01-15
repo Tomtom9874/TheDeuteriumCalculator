@@ -25,7 +25,7 @@ The ProteoWizard tool package contains the msConvert tool which is used to chang
 <a href=http://proteowizard.sourceforge.net/download.html>ProteoWizard Download Page</a> you can download this package in order to use msConvert.
 
 ## Preparation
-Open the file named _**Parameters.py**_ or _**Parameters**_. One can use a text editor such as "notepad" or an IDE such as PyCharm. This file is divided into five sections.
+Open the file named _**Parameters.py**_ or _**Parameters**_. One can use a text editor such as "Notepad" or an IDE such as PyCharm. Notepad comes installed on Windows PCs. This file is divided into five sections.
 
 In the first you change the input files to the names of your input files **(including the file extension e.g. .txt, .mzML)**.
 Leave the 'r' before the path to your input files. On Windows you can copy the path to a file by holding shift while right clicking the file.

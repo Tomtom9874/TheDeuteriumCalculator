@@ -8,9 +8,9 @@ from pyteomics import mzml
 from datetime import datetime
 from os import path
 from matplotlib import pyplot as plt
-from scipy.optimize import OptimizeWarning
 import warnings
 warnings.filterwarnings("ignore", message="Covariance of the parameters could not be estimated")
+SLIDE_AMOUNT = CON.SLIDING_WINDOW_SIZE / CON.SLIDE_FRACTION
 
 
 # checks whether an output directory exists, ignores actual filename
@@ -52,7 +52,7 @@ def fit_gaussian(y_data):
         else:
             consecutive_non_zeroes = 0
     if consecutive_non_zeroes != 3:
-        return "N/A"
+        return "Insufficient Match"
     try:
         popt, pcov = curve_fit(gaussian_trend, x_data, y_data)
         r_squared = calculate_r_squared(x_data, y_data, *popt)
@@ -60,19 +60,17 @@ def fit_gaussian(y_data):
             return 0
         return r_squared
     except RuntimeError:
-        return "N/A"
-    except OptimizeWarning:
-        pass
+        return "Couldn't Fit"
 
 
 # returns the maximum possible deuterium for a given sequence
-# This is represented as the # of amino acids - 1 - the number of proline molecules.
+# This is represented as the # of amino acids - 2 - the number of proline molecules * recovery rate * D2O Fraction.
 def sequence_to_max_deuterium(sequence: str):
-    max_deuterium = len(sequence) - 1
+    max_deuterium = len(sequence) - 2
     for letter in sequence:
         if letter.lower() == 'p':
             max_deuterium -= 1
-    return max_deuterium
+    return int(max_deuterium * CON.DEUTERIUM_RECOVERY_RATE * CON.DEUTERIUM_FRACTION) + 1
 
 
 def check_output_extension(file: str):
@@ -99,7 +97,7 @@ def check_parameters():
     if CON.SLIDING_WINDOW_PPM_TOLERANCE > 10:
         warnings.warn(("SLIDING_WINDOW_PPM_TOLERANCE is set to {}, "
                        "recommendation is under 10.".format(CON.SLIDING_WINDOW_PPM_TOLERANCE)))
-    if CON.SLIDING_WINDOW_SIZE % CON.SLIDE_AMOUNT != 0:
+    if CON.SLIDING_WINDOW_SIZE % SLIDE_AMOUNT != 0:
         raise ValueError("SLIDING_WINDOW_SIZE must be divisible by SLIDE_AMOUNT")
     if CON.RETENTION_TOLERANCE < 10:
         raise ValueError("RETENTION_TOLERANCE must be a number over 10, greater than 30 recommended.")
@@ -330,11 +328,11 @@ class FullExperiment:
 
     # adds the name of each file to the list
     def add_file(self, time, is_complex: bool, replication):
-        complexity = "Free"
+        complexity = CON.CONDITION1
         if is_complex:
-            complexity = "Complex"
-        print("Enter path to mzML for time:", time, "replication:",
-              replication + 1, "complexity:", complexity)
+            complexity = CON.CONDITION2
+        print("Enter path to mzML for Time:", time, "Replication:",
+              replication + 1, "Condition:", complexity)
         file = ""
         while not path.exists(file) or not check_extension(file, ".mzml"):
             file = get_path_input()
@@ -401,12 +399,12 @@ class FullExperiment:
     def generate_recommendation_table_1(self):
         top_header = ["Start", "End", "Sequence", "Peptide mass (Da)", "Retention time (min)"]
         bot_header = ["Start", "End", "Sequence", "Peptide mass (Da)", "Retention time (min)"]
-        self.update_headers(top_header, bot_header, "Uptake FREE (D)")
+        self.update_headers(top_header, bot_header, "Uptake " + CON.CONDITION1 + " (D)")
         if self._is_differential:
-            self.update_headers(top_header, bot_header, "Uptake COMPLEX (D)")
-        self.update_headers(top_header, bot_header, "Uptake error (SD) - FREE (D)")
+            self.update_headers(top_header, bot_header, "Uptake " + CON.CONDITION2 + " (D)")
+        self.update_headers(top_header, bot_header, "Uptake error (SD) - " + CON.CONDITION1 + " (D)")
         if self._is_differential:
-            self.update_headers(top_header, bot_header, "Uptake error (SD) - COMPLEX (D)")
+            self.update_headers(top_header, bot_header, "Uptake error (SD) - " + CON.CONDITION2 + " (D)")
         peptide_lines = []
         # Each loop generates one line
         for index, pep in enumerate(self._peptides):
@@ -423,7 +421,7 @@ class FullExperiment:
             peptide.extend(deviations)
             peptide_lines.append(peptide)
 
-        with open(CON.RECOMMENDATION_TABLE_1, "w+", newline='') as f:
+        with open(CON.RECOMMENDATION_TABLE_1 + ".csv", "w+", newline='') as f:
             csv_writer = csv.writer(f)
             csv_writer.writerow(top_header)
             csv_writer.writerow(bot_header)
@@ -434,9 +432,9 @@ class FullExperiment:
         for index, pep in enumerate(self._peptides):
             row = {}
             if complexity:
-                row["Protein state"] = "Complex"
+                row["Protein state"] = CON.CONDITION2
             else:
-                row["Protein state"] = "Free"
+                row["Protein state"] = CON.CONDITION1
             row["Start"], row["End"] = pep.get_start(), pep.get_end()
             row["Sequence"] = pep.get_sequence()
             row["Peptide mass (Da)"] = pep.get_monoisotopic_mass()
@@ -487,9 +485,9 @@ class FullExperiment:
                 self._num_replications,
                 "",
                 ""]
-        data = {"Data Set": labels, "Free": info, "Complex": info}
+        data = {"Data Set": labels, CON.CONDITION1: info, CON.CONDITION2: info}
         df = pd.DataFrame(data=data)
-        df.to_csv(CON.SUMMARY_TABLE, index=False)
+        df.to_csv(CON.SUMMARY_TABLE + ".csv", index=False)
 
     def generate_output(self):
         self.generate_recommendation_table_1()
@@ -532,8 +530,8 @@ class FullExperiment:
             time_col = str(time) + " min"
 
             for _, row in df.iterrows():
-                free_deviation = row["Uptake error (SD) - COMPLEX (D)"][time_col]
-                complex_deviation = row["Uptake error (SD) - FREE (D)"][time_col]
+                free_deviation = row["Uptake error (SD) - " + CON.CONDITION1 + " (D)"][time_col]
+                complex_deviation = row["Uptake error (SD) - " + CON.CONDITION2 + " (D)"][time_col]
                 difference = (free_deviation ** 2 + complex_deviation ** 2) ** 0.5
                 length = sequence_to_max_deuterium(row["Sequence"]["Sequence"])
                 if fractional:
@@ -554,7 +552,8 @@ class FullExperiment:
                 sequence = row['Sequence']['Sequence']
                 start, end = row["Start"]["Start"], row["End"]["End"]
                 x = start, end
-                difference = row["Uptake COMPLEX (D)"][time_col] - row["Uptake FREE (D)"][time_col]
+                difference = (row["Uptake " + CON.CONDITION2 + " (D)"][time_col] -
+                              row["Uptake " + CON.CONDITION1 + " (D)"][time_col])
                 absolute_difference = difference
                 if fractional:
                     difference /= sequence_to_max_deuterium(sequence)
@@ -569,7 +568,7 @@ class FullExperiment:
                 output['End'].append(end)
                 output['Relative Uptake'].append(absolute_difference)
                 output['Relative Fractional Uptake'].append(difference)
-                if abs(difference > confidence):
+                if abs(difference) > confidence:
                     output['Significant'].append("Yes")
                 else:
                     output['Significant'].append("No")
@@ -603,8 +602,8 @@ class ReadRun:
                 if is_first:
                     is_first = False
                 else:
-                    pep.set_weighted_mass()
                     pep.set_fit()
+                    pep.set_weighted_mass()
                     self.peptides.append(pep)
                 pep = Peptide(row['Sequence'], row['SequenceMz'], row['Charge'], "N/A")
                 pep.set_sequence_index(row['Start'], row['End'])
@@ -666,7 +665,7 @@ class ExperimentalRun:
         retention_time = scan["scanList"]["scan"][0]["scan start time"] * CON.MINUTES_TO_SECONDS
         tuple_list = []
         for j in range(len(scan["m/z array"])):
-            if scan["intensity array"][j] >= CON.NOISE_LIMIT:
+            if scan["intensity array"][j] > CON.NOISE_LIMIT:
                 tuple_list.append((scan["m/z array"][j], scan["intensity array"][j]))
         self.all_peaks.append({"retention time": retention_time, "tuple list": tuple_list})
 
@@ -695,15 +694,15 @@ class ExperimentalRun:
     # averages intensity of similar masses within RT ranges
     def sliding_window(self, retention_time: float):
         window_count = int(int((retention_time // CON.SLIDING_WINDOW_SIZE) + 1) *
-                           (CON.SLIDING_WINDOW_SIZE / CON.SLIDE_AMOUNT)) - 1
+                           (CON.SLIDING_WINDOW_SIZE / SLIDE_AMOUNT)) - 1
         start_time = datetime.now()
         start = 0
         stop = CON.SLIDING_WINDOW_SIZE
         windows = []
         for i in range(window_count):
             windows.append((start, stop))
-            start += CON.SLIDE_AMOUNT
-            stop += CON.SLIDE_AMOUNT
+            start += SLIDE_AMOUNT
+            stop += SLIDE_AMOUNT
         window_dictionary = {}
         for window in windows:
             key = window
@@ -765,6 +764,7 @@ class ExperimentalRun:
                                                charge, tuple_list, tuple_list)
             if ppm_error != 0:
                 pep.set_deuterium(det, mz, intensity, ppm_error)
+        pep.set_fit()
         pep.set_weighted_mass()
 
     def hydrogen_deuterium_exchange(self, identification_file: str):
@@ -783,7 +783,7 @@ class ExperimentalRun:
             count += 1
             if count % 20 == 0 or count == 1 or count == len(self.peptides):
                 print(count, "/", len(self.peptides))
-        print("Time to match:", datetime.now() - start_time)
+        print("Time to match:", datetime.now() - start_time, '\n')
         file = generate_output_name(self._time, self._complexity, self._replication)
         self.write_hdx(file)
 
@@ -794,7 +794,7 @@ class ExperimentalRun:
         with open(file, "w+", newline='') as f:
             csv_writer = csv.writer(f)
             if not output_exists:
-                header = ["Start", "End", "Sequence", "Charge", "SequenceMz", "Complex",
+                header = ["Start", "End", "Sequence", "Charge", "SequenceMz", CON.CONDITION2,
                           "Deuterium", "RT", "Mz", "Intensity", "PpmError", "Average", "Shift",
                           "Gaussian Fit"]
                 csv_writer.writerow(header)
@@ -808,9 +808,9 @@ class ExperimentalRun:
 
 
 def generate_output_name(time, is_complex, replication):
-    complexity = "Free"
+    complexity = CON.CONDITION1
     if is_complex:
-        complexity = "Complex"
+        complexity = CON.CONDITION2
     file = (CON.FULL_HDX_OUTPUT + "_" + str(time) + "s_"
             + str(complexity) + "_" + str(replication + 1) + ".csv")
     return file
@@ -976,7 +976,7 @@ class Peptide:
         self._weighted_mass_to_charge = mass
         weighted_mass = self._weighted_mass_to_charge - CON.MASS_OF_HYDROGEN
         self._mass_shift = weighted_mass * self._charge - self._average_mass
-        if total_intensity == 0:
+        if total_intensity == 0 or self._fit == "Insufficient Match":
             self._weighted_mass_to_charge = -1
             self._mass_shift = -1
 
