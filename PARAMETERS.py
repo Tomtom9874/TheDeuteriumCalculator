@@ -10,7 +10,7 @@ RECOMMENDATION_TABLE_1 = r"Outputs\Recommendation_Table_1"  # No file extension
 RECOMMENDATION_TABLE_2 = r"Outputs\Recommendation_Table_2"  # No file extension
 SUMMARY_TABLE = r"Outputs\Summary"  # No file extension
 WOODS_PLOT_NAME = r"Outputs\WoodsPlot"  # No file extension
-WOODS_TABLE_NAME = r"WoodsTable"  # No file extension
+WOODS_TABLE_NAME = r"Outputs\WoodsTable"  # No file extension
 
 
 # Parameters (Only change the numbers and path, not the names or text after the '#'. Defaults given in parenthesis.)
@@ -27,10 +27,10 @@ WOODS_PLOT_HEIGHT = 4  # Inches  (4)
 WOODS_PLOT_WIDTH = 5  # Inches  (5)
 DEUTERIUM_RECOVERY_RATE = .73  # The experimentally determined back exchange rate. (1)
 DEUTERIUM_FRACTION = 0.833  # The fraction of D2O used in the experiment. (1)
-
-# Constants (Change at your own risk; may cause incorrect results)
 CONDITION1 = "Free"
 CONDITION2 = "Complex"
+
+# Constants (Change at your own risk; may cause incorrect results)
 DEUTERIUM_MASS_DIFFERENCE = 1.00627
 MASS_OF_WATER = 18.01528
 MASS_OF_HYDROGEN = 1.007276

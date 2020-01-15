@@ -24,7 +24,7 @@ _**note: there are no numbers, any "l" character is the letter. It is recommende
 The ProteoWizard tool package contains the msConvert tool which is used to change vendor file types to mzML files. At the 
 <a href=http://proteowizard.sourceforge.net/download.html>ProteoWizard Download Page</a> you can download this package in order to use msConvert.
 
-## Preparation
+## Input Preparation
 Open the file named _**Parameters.py**_ or _**Parameters**_. One can use a text editor such as "Notepad" or an IDE such as PyCharm. Notepad comes installed on Windows PCs. This file is divided into five sections.
 
 In the first you change the input files to the names of your input files **(including the file extension e.g. .txt, .mzML)**.
@@ -44,9 +44,11 @@ An identification file is included in the zip file, however this only has the he
 
 _**Protein Sequence File**_ This is a .txt file which simply contains the string of characters representing the amino acids in the protein being examined.
 
+## Output Paths
 The second section is the output files. Here you can either give the path to the location of each output file or you can simply put the name of the file and it will be added to the working directory.
 *Once again, do not remove the r before the path*
 
+## Parameter Selection
 In the third are parameters you can change to tune your results. In detail these are:
 
 * **Noise Limit:** This filters all individual peaks with an intensity under the PPM Match Tolerance.
@@ -56,13 +58,18 @@ In the third are parameters you can change to tune your results. In detail these
 * **Slide Fraction:** Determines the overlap of the window as it slides. A value of 1 would give no overlap. Recommended to keep below 4. Make sure <strong>Sliding Window Size</strong> is divisible by this value.
 * **Retention Tolerance:** extends the retention time of an identification by plus and minus this value. Increase this value if there is a significant difference between the elution time of peptides in the identification run compared to the experimental run. 
 * **Woods' Plot Confidence:** Decides where to draw the confidence line on Woods' plot. A two tailed test is used in this calculation.
+* **Woods' Plot Title:** This is the title on the absolute woods plot, not the path.
+* **Fractional Woods' Plot Title:** Title on the fractional graph.
+* **Woods' Plot Height/Width:** Dimension of the plot in inches.
+* **Deuterium Recovery Rate:** Back exchange rate for experiment out of one. Used for maxD calculation
+* **Deuterium Fraction:** Fraction of D2O to H2O used out of one. 
+* **Condition 1 and 2:** Names for the two conditions in a differential experiment. If the experiment is not differential, Condition 1 will be used. 
 
-The forth section allows for choices on where to output the Woods' plot as well as details on the plot.
 ***
 _**Modify the constants with care, this can lead to incorrect evaluation.**_
 ***
-## Running Software
 
+## Starting Software
 In the command prompt navigate to the folder containing the program and associated files. This can be done by repeatedly typing "cd" followed by a space and the name of the folder. Then run the program by typing "python TheDeuteriumCalculator.py"
 
 **Example**
@@ -80,6 +87,8 @@ In this directory
 Type `"python TheDeuteriumCalculator.py"`
 
 This will start the program.
+
+## Running Software
 Each time the program runs you will be prompted for a number of details on the program. They are:
 
 * The number of time points

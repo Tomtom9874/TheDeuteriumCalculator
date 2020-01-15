@@ -331,8 +331,8 @@ class FullExperiment:
         complexity = CON.CONDITION1
         if is_complex:
             complexity = CON.CONDITION2
-        print("Enter path to mzML for Time:", time, "Replication:",
-              replication + 1, "Condition:", complexity)
+        print("Enter path to mzML for   Time:", time, "  Replication:",
+              replication + 1, "  Condition:", complexity)
         file = ""
         while not path.exists(file) or not check_extension(file, ".mzml"):
             file = get_path_input()
@@ -493,8 +493,8 @@ class FullExperiment:
         self.generate_recommendation_table_1()
         self.generate_recommendation_table_2()
         if self._is_differential:
-            self.generate_differential_woods_plot(CON.RECOMMENDATION_TABLE_1, CON.WOODS_PLOT_TITLE)
-            self.generate_differential_woods_plot(CON.RECOMMENDATION_TABLE_1, CON.WOODS_PLOT_TITLE, False)
+            self.generate_differential_woods_plot(CON.WOODS_PLOT_TITLE)
+            self.generate_differential_woods_plot(CON.WOODS_PLOT_TITLE, False)
             self.generate_summary_table()
 
     # confidence is between 0 and 1, df is
@@ -515,18 +515,18 @@ class FullExperiment:
         return standard_error * critical_value
 
     # Saves a plot of name "file"_"time"s.png with a given title. can be fractional or absolute
-    def generate_differential_woods_plot(self, file: str, title: str, fractional=True):
+    def generate_differential_woods_plot(self, title: str, is_fractional=True):
         plt.figure(figsize=(CON.WOODS_PLOT_WIDTH, CON.WOODS_PLOT_HEIGHT))
         plt.title(title)
         plt.xlabel("Sequence")
         plt.ylabel("Relative Uptake (Da)")
         plt.tight_layout()
         maroon = '#cc0000'
-        if fractional:
+        if is_fractional:
             plt.ylabel("Relative Fractional Uptake")
         for time in self._time_points:
             plt.plot((0, len(self.protein)), (0, 0), 'k:')
-            df = pd.read_csv(file, header=[0, 1])
+            df = pd.read_csv(CON.RECOMMENDATION_TABLE_1 + ".csv", header=[0, 1])
             time_col = str(time) + " min"
 
             for _, row in df.iterrows():
@@ -534,10 +534,10 @@ class FullExperiment:
                 complex_deviation = row["Uptake error (SD) - " + CON.CONDITION2 + " (D)"][time_col]
                 difference = (free_deviation ** 2 + complex_deviation ** 2) ** 0.5
                 length = sequence_to_max_deuterium(row["Sequence"]["Sequence"])
-                if fractional:
+                if is_fractional:
                     difference /= length
                 self.difference_deviations[time].append(difference)
-            confidence = self.calculate_confidence_limit(time, fractional)
+            confidence = self.calculate_confidence_limit(time, is_fractional)
             plt.plot((0, len(self.protein)), (confidence, confidence), 'r')
             plt.plot((0, len(self.protein)), (-confidence, -confidence), 'r')
             output = {
@@ -555,7 +555,7 @@ class FullExperiment:
                 difference = (row["Uptake " + CON.CONDITION2 + " (D)"][time_col] -
                               row["Uptake " + CON.CONDITION1 + " (D)"][time_col])
                 absolute_difference = difference
-                if fractional:
+                if is_fractional:
                     difference /= sequence_to_max_deuterium(sequence)
                 if abs(difference) > confidence:
                     line_color = maroon
@@ -573,9 +573,12 @@ class FullExperiment:
                 else:
                     output['Significant'].append("No")
             data_frame = pd.DataFrame(data=output)
-            data_frame.to_csv(CON.WOODS_TABLE_NAME + ".csv", index=False)
+            table_file_name = CON.WOODS_TABLE_NAME
+            if is_fractional:
+                table_file_name += "_fractional"
+            data_frame.to_csv(table_file_name + ".csv", index=False)
             plot_file_name = CON.WOODS_PLOT_NAME + "_" + str(time) + "s"
-            if fractional:
+            if is_fractional:
                 plot_file_name += "_fractional"
             plot_file_name += ".png"
             plt.savefig(plot_file_name)
@@ -673,6 +676,7 @@ class ExperimentalRun:
     # list with tuples containing the m/z and intensity
     def read_mzml(self, file: str):
         total = 0
+        print()
         print("(initializing)")
         with mzml.read(file) as f:
             for scan in f:
