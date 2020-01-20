@@ -1,16 +1,16 @@
 # Input Files (Only change the path, not the names or text after the '#'.)
-IDENTIFICATION_MZML_FILE = r"C:\Users\Tom\PycharmProjects\TheDeuteriumCalculator\mzMLFiles\IDRun.mzML"  # must be .mzML
-IDENTIFICATION_CSV_FILE = r"C:\Users\Tom\PycharmProjects\TheDeuteriumCalculator\Input.csv"  # Must be .csv
-PROTEIN_SEQUENCE_FILE = r"C:\Users\Tom\PycharmProjects\TheDeuteriumCalculator\Protein.txt"  # Must be .txt
+IDENTIFICATION_MZML_FILE = r"C:\Users\Tom\PycharmProjects\TheDeuteriumCalculator\ParE\20190501_MLF_HDX_ParE_ID.mzML"  # must be .mzML
+IDENTIFICATION_CSV_FILE = r"C:\Users\Tom\PycharmProjects\TheDeuteriumCalculator\ParE\Identification\PARE_Input.csv"  # Must be .csv
+PROTEIN_SEQUENCE_FILE = r"C:\Users\Tom\PycharmProjects\TheDeuteriumCalculator\ParE\Identification\ParE.txt"  # Must be .txt
 
 
 # Output Files (Only change the path, not the names or text after the '#'.)
-FULL_HDX_OUTPUT = r"Outputs\HdxOutput"  # No file extension
-RECOMMENDATION_TABLE_1 = r"Outputs\Recommendation_Table_1"  # No file extension
-RECOMMENDATION_TABLE_2 = r"Outputs\Recommendation_Table_2"  # No file extension
-SUMMARY_TABLE = r"Outputs\Summary"  # No file extension
-WOODS_PLOT_NAME = r"Outputs\WoodsPlot"  # No file extension
-WOODS_TABLE_NAME = r"Outputs\WoodsTable"  # No file extension
+FULL_HDX_OUTPUT = r"Outputs\ParE_HdxOutput"  # No file extension
+RECOMMENDATION_TABLE_1 = r"Outputs\ParE_Recommendation_Table_1"  # No file extension
+RECOMMENDATION_TABLE_2 = r"Outputs\ParE_Recommendation_Table_2"  # No file extension
+SUMMARY_TABLE = r"Outputs\ParE_Summary"  # No file extension
+WOODS_PLOT_NAME = r"Outputs\ParE_WoodsPlot"  # No file extension
+WOODS_TABLE_NAME = r"Outputs\ParE_WoodsTable"  # No file extension
 
 
 # Parameters (Only change the numbers and path, not the names or text after the '#'. Defaults given in parenthesis.)
@@ -23,12 +23,12 @@ SLIDE_FRACTION = 3  # Fraction of the window that the window moves each each sli
 RETENTION_TOLERANCE = 30  # window of retention times to search for given peptide (+-) (30)
 DEUTERIUM_RECOVERY_RATE = 1  # The experimentally determined back exchange rate. (1)
 DEUTERIUM_FRACTION = 0.833  # The fraction of D2O used in the experiment. (1)
-CONDITION1 = "Free"  # This will be used in single condition experiments
+CONDITION1 = "Free"
 CONDITION2 = "Complex"
 # Step 2 Parameters
 WOODS_PLOT_CONFIDENCE = 0.99  # Use to calculate confidence interval for differential woods plot (0-1)
-WOODS_PLOT_TITLE = r"Differential Uptake Woods' Plot"  # Title on the woods' plot
-FRACTIONAL_WOODS_PLOT_TITLE = r"Differential Fractional Uptake Woods' Plot"  # Title on the fractional woods' plot
+WOODS_PLOT_TITLE = r"ParE_Differential Uptake Woods' Plot"  # Title on the woods' plot
+FRACTIONAL_WOODS_PLOT_TITLE = r"ParE_Differential Fractional Uptake Woods' Plot"  # Title on the fractional woods' plot
 WOODS_PLOT_HEIGHT = 4  # Inches  (4)
 WOODS_PLOT_WIDTH = 5  # Inches  (5)
 RETENTION_SHIFT_SLOPE = 1

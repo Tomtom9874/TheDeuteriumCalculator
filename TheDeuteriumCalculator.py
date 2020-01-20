@@ -3,7 +3,7 @@ import pandas as pd
 import csv
 from scipy.optimize import curve_fit
 from scipy import stats
-import PARAMETERS as CON
+import PARAMETERS_BE as CON
 from pyteomics import mzml
 from datetime import datetime
 from os import path
@@ -210,43 +210,46 @@ def tuple_combine(some_list):
 def compare(target, charge, array, full_array):
     midpoint = int(len(array) / 2)
     # This represents any match
-    if abs(get_ppm(target, array[midpoint][0] * charge)) <= CON.PPM_MATCH_TOLERANCE:
-        return_list = [(array[midpoint][0], array[midpoint][1])]
-        offset = 1
-        # These two while loops then check any adjacent peak
-        while offset != 0 and (midpoint - offset) > 0:
-            peak = array[midpoint - offset]
-            ppm = abs(get_ppm(target, peak[0] * charge))
-            if ppm <= CON.PPM_MATCH_TOLERANCE:
-                return_list.append((peak[0], peak[1]))
-                offset += 1
-            else:
-                offset = 0
-        offset = 1
-        while offset != 0 and (midpoint + offset < len(array)):
-            peak = array[midpoint + offset]
-            ppm = abs(get_ppm(target, peak[0] * charge))
-            if ppm <= CON.PPM_MATCH_TOLERANCE:
-                return_list.append((peak[0], peak[1]))
-                offset += 1
-            else:
-                offset = 0
-        high_intensity = (0, 0)
-        for key, value in return_list:
-            if value > high_intensity[1]:
-                high_intensity = key, value
+    try:
+        if abs(get_ppm(target, array[midpoint][0] * charge)) <= CON.PPM_MATCH_TOLERANCE:
+            return_list = [(array[midpoint][0], array[midpoint][1])]
+            offset = 1
+            # These two while loops then check any adjacent peak
+            while offset != 0 and (midpoint - offset) > 0:
+                peak = array[midpoint - offset]
+                ppm = abs(get_ppm(target, peak[0] * charge))
+                if ppm <= CON.PPM_MATCH_TOLERANCE:
+                    return_list.append((peak[0], peak[1]))
+                    offset += 1
+                else:
+                    offset = 0
+            offset = 1
+            while offset != 0 and (midpoint + offset < len(array)):
+                peak = array[midpoint + offset]
+                ppm = abs(get_ppm(target, peak[0] * charge))
+                if ppm <= CON.PPM_MATCH_TOLERANCE:
+                    return_list.append((peak[0], peak[1]))
+                    offset += 1
+                else:
+                    offset = 0
+            high_intensity = (0, 0)
+            for key, value in return_list:
+                if value > high_intensity[1]:
+                    high_intensity = key, value
 
-        ppm_error = abs(get_ppm(target, high_intensity[0] * charge))
-        if ppm_error > CON.PPM_MATCH_TOLERANCE:
-            print("PPM ERROR!")
-        return ppm_error, high_intensity[0],  high_intensity[1]
+            ppm_error = abs(get_ppm(target, high_intensity[0] * charge))
+            if ppm_error > CON.PPM_MATCH_TOLERANCE:
+                print("PPM ERROR!")
+            return ppm_error, high_intensity[0],  high_intensity[1]
 
-    elif len(array) == 1 or len(array) == 0:
+        elif len(array) == 1 or len(array) == 0:
+            return 0, 0, 0
+        elif array[midpoint][0] * charge <= target:
+            return compare(target, charge, array[midpoint:], full_array)
+        else:
+            return compare(target, charge, array[0: midpoint], full_array)
+    except IndexError:
         return 0, 0, 0
-    elif array[midpoint][0] * charge <= target:
-        return compare(target, charge, array[midpoint:], full_array)
-    else:
-        return compare(target, charge, array[0: midpoint], full_array)
 
 
 # Converts scan number to retention time using the mzml file
@@ -256,7 +259,9 @@ def set_retention_times(file: str):
         for scan in f:
             if scan["ms level"] == 2:
                 scan_time = float(scan["scanList"]["scan"][0]["scan start time"])
-                retention_scan_dictionary[scan["index"] + 1] = scan_time * CON.MINUTES_TO_SECONDS
+                scan_time = (scan_time - CON.RETENTION_SHIFT_INTERCEPT) / CON.RETENTION_SHIFT_SLOPE
+                scan_time *= CON.MINUTES_TO_SECONDS
+                retention_scan_dictionary[scan["index"] + 1] = scan_time
     return retention_scan_dictionary
 
 
@@ -410,7 +415,7 @@ class FullExperiment:
         for index, pep in enumerate(self._peptides):
             peptide = [pep.get_start(), pep.get_end(), pep.get_sequence(), pep.get_average_mass()]
             start, end = pep.get_rt_start_end()
-            rt = (start + end) / 2 / CON.MINUTES_TO_SECONDS
+            rt = (start + end) / 2
             peptide.append(rt)
             averages = []
             deviations = []
@@ -798,7 +803,7 @@ class ExperimentalRun:
         with open(file, "w+", newline='') as f:
             csv_writer = csv.writer(f)
             if not output_exists:
-                header = ["Start", "End", "Sequence", "Charge", "SequenceMz", CON.CONDITION2,
+                header = ["Start", "End", "Sequence", "Charge", "SequenceMz", "Condition",
                           "Deuterium", "RT", "Mz", "Intensity", "PpmError", "Average", "Shift",
                           "Gaussian Fit"]
                 csv_writer.writerow(header)
@@ -856,8 +861,6 @@ class Peptide:
         self.set_average_mass()
         self._protein = parse_protein(CON.PROTEIN_SEQUENCE_FILE)
         self._start, self._end = find_start_end(self._sequence, self._protein)
-        if self._start == "NULL":
-            print(self._sequence)
         self._fit = 0  # Gaussian fit
 
     def __str__(self):
@@ -907,6 +910,10 @@ class Peptide:
 
     # returns peptide data for the detailed output
     def get_rows(self, complexity: str):
+        if complexity:
+            condition = CON.CONDITION2
+        else:
+            condition = CON.CONDITION1
         line_list = []
         self.set_fit()
         for i in range(self.get_max_deuterium() + 1):
@@ -918,7 +925,7 @@ class Peptide:
             line[2] = self._sequence
             line[3] = self._charge
             line[4] = self._mass_over_charge
-            line[5] = complexity
+            line[5] = condition
             line[6] = i
             line[7] = (self._rt_end + self._rt_start) / 2 / CON.MINUTES_TO_SECONDS
             line[8] = mz

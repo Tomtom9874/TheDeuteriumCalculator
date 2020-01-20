@@ -25,10 +25,10 @@ The ProteoWizard tool package contains the msConvert tool which is used to chang
 <a href=http://proteowizard.sourceforge.net/download.html>ProteoWizard Download Page</a> you can download this package in order to use msConvert.
 
 ## Input Preparation
-Open the file named _**Parameters.py**_ or _**Parameters**_. One can use a text editor such as "Notepad" or an IDE such as PyCharm. Notepad comes installed on Windows PCs. This file is divided into five sections.
+Open the file named _**Parameters.py**_ or _**Parameters**_. One can use a text editor such as "Notepad" or an IDE such as PyCharm. Notepad comes installed on Windows PCs. This file is divided into four sections.
 
 In the first you change the input files to the names of your input files **(including the file extension e.g. .txt, .mzML)**.
-Leave the 'r' before the path to your input files. On Windows you can copy the path to a file by holding shift while right clicking the file.
+Leave the 'r' before the path to your input files. On Windows you can copy the path to a file by holding shift while right clicking the file then selcting "Copy as Path".
 
 _**Identification mzML File-**_ The mzML file which you performed the database search on which found the sequences you intend to search.
 *This is not the expermintal mzML(s). These will be added when the program is run.*
@@ -49,7 +49,7 @@ The second section is the output files. Here you can either give the path to the
 *Once again, do not remove the r before the path*
 
 ## Parameter Selection
-In the third are parameters you can change to tune your results. In detail these are:
+In the third section are parameters you can change to tune your results. In detail these are:
 
 * **Noise Limit:** This filters all individual peaks with an intensity under the PPM Match Tolerance.
 * **PPM Match Tolerance:** Peaks with an m/z difference of less than this value are considered a match. Adjust based on the sensitivity of your Mass Spectrometer.
@@ -104,7 +104,6 @@ Step two can either be selected immediately or the program may be exited allowin
 **If changes are made to the data, the program must be restarted before they can be recognized.** Step two will generate the final outputs, including summary data and the Woods' Plot. 
 
 ## Notes and Troubleshooting
-
 * Step one only needs to be completed once per experiment, unless user error is noticed such as incorrect selection of mzML files.
 * When working on multiple experiments simultaneously the names of output files must be changed, or the files moved, or else they will be overwritten.
 * Always close any existing output files before running the program. 
