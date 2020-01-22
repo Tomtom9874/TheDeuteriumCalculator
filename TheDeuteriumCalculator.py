@@ -522,21 +522,24 @@ class FullExperiment:
         return standard_error * critical_value
 
     # Saves a plot of name "file"_"time"s.png with a given title. can be fractional or absolute
+    # Also generates a table of the values used in the plot
     def generate_differential_woods_plot(self, title: str, is_fractional=True):
+        # Formatting
         plt.figure(figsize=(CON.WOODS_PLOT_WIDTH, CON.WOODS_PLOT_HEIGHT))
         plt.title(title)
         plt.xlabel("Sequence")
-        plt.ylabel("Relative Uptake (Da)")
         plt.tight_layout()
         plt.xlim(0, len(self.protein))
-        maroon = 'k'
         gray = '#D3D3D3'
         if is_fractional:
             plt.ylabel("Relative Fractional Uptake")
+        else:
+            plt.ylabel("Relative Uptake (Da)")
+        # Generates a plot for each time point
         for time in self._time_points:
             df = pd.read_csv(CON.RECOMMENDATION_TABLE_1 + ".csv", header=[0, 1])
             time_col = str(time) + " min"
-
+            # Plots each peptide
             for _, row in df.iterrows():
                 free_deviation = row["Uptake error (SD) - " + CON.CONDITION1 + " (D)"][time_col]
                 complex_deviation = row["Uptake error (SD) - " + CON.CONDITION2 + " (D)"][time_col]
@@ -545,9 +548,9 @@ class FullExperiment:
                 if is_fractional:
                     difference /= length
                 self.difference_deviations[time].append(difference)
-            confidence = self.calculate_confidence_limit(time, is_fractional, CON.WOODS_PLOT_CONFIDENCE_2)
+            high_confidence = self.calculate_confidence_limit(time, is_fractional, CON.WOODS_PLOT_CONFIDENCE_2)
             low_confidence = self.calculate_confidence_limit(time, is_fractional, CON.WOODS_PLOT_CONFIDENCE_1)
-            output = {
+            output_table = {
                 'Sequence': [],
                 'Start': [],
                 'End': [],
@@ -555,36 +558,39 @@ class FullExperiment:
                 'Relative Fractional Uptake': [],
                 'Significant': []
             }
+            # Adds each sequence to table
             for _, row in df.iterrows():
                 sequence = row['Sequence']['Sequence']
                 start, end = row["Start"]["Start"], row["End"]["End"]
-                x = start, end
                 difference = (row["Uptake " + CON.CONDITION2 + " (D)"][time_col] -
                               row["Uptake " + CON.CONDITION1 + " (D)"][time_col])
                 absolute_difference = difference
                 if is_fractional:
                     difference /= sequence_to_max_deuterium(sequence)
-                if abs(difference) > confidence:
+                if abs(difference) > high_confidence:
                     line_color = 'r'
                 else:
                     line_color = gray
+                x = start, end
                 y = (difference, difference)
                 plt.plot(x, y, line_color)
-                output['Sequence'].append(sequence)
-                output['Start'].append(start)
-                output['End'].append(end)
-                output['Relative Uptake'].append(absolute_difference)
-                output['Relative Fractional Uptake'].append(difference)
-                if abs(difference) > confidence:
-                    output['Significant'].append("Yes")
+                output_table['Sequence'].append(sequence)
+                output_table['Start'].append(start)
+                output_table['End'].append(end)
+                output_table['Relative Uptake'].append(absolute_difference)
+                output_table['Relative Fractional Uptake'].append(difference)
+                if abs(difference) > high_confidence:
+                    output_table['Significant'].append("Yes")
                 else:
-                    output['Significant'].append("No")
+                    output_table['Significant'].append("No")
+            # Plots the significance lines
             plt.plot((0, len(self.protein)), (0, 0), 'k:')
-            plt.plot((0, len(self.protein)), (confidence, confidence), maroon)
-            plt.plot((0, len(self.protein)), (-confidence, -confidence), maroon)
-            plt.plot((0, len(self.protein)), (low_confidence, low_confidence), '--', color=maroon)
-            plt.plot((0, len(self.protein)), (-low_confidence, -low_confidence),  '--', color=maroon)
-            data_frame = pd.DataFrame(data=output)
+            plt.plot((0, len(self.protein)), (high_confidence, high_confidence), 'k')
+            plt.plot((0, len(self.protein)), (-high_confidence, -high_confidence), 'k')
+            plt.plot((0, len(self.protein)), (low_confidence, low_confidence), '--', color='k')
+            plt.plot((0, len(self.protein)), (-low_confidence, -low_confidence),  '--', color='k')
+            # Generates Output
+            data_frame = pd.DataFrame(data=output_table)
             table_file_name = CON.WOODS_TABLE_NAME
             if is_fractional:
                 table_file_name += "_fractional"
