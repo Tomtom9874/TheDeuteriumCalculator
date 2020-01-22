@@ -103,10 +103,10 @@ def check_parameters():
         raise ValueError("RETENTION_TOLERANCE must be a number over 10, greater than 30 recommended.")
     if CON.RETENTION_TOLERANCE < 30:
         warnings.warn("A retention tolerance of greater than 30s is recommended")
-    if not 0 < CON.WOODS_PLOT_CONFIDENCE_1 < 1:
-        raise ValueError("Woods' Plot Confidence 1 must be between 0 and 1")
-    if not 0 < CON.WOODS_PLOT_CONFIDENCE_2 < 1:
-        raise ValueError("Woods' Plot Confidence 2 must be between 0 and 1")
+    if not 0 < CON.WOODS_PLOT_CONFIDENCE_LOW < 1:
+        raise ValueError("Woods' Plot Confidence LOW must be between 0 and 1")
+    if not 0 < CON.WOODS_PLOT_CONFIDENCE_HIGH < 1:
+        raise ValueError("Woods' Plot Confidence HIGH must be between 0 and 1")
 
 
 def check_extension(string, extension):
@@ -270,10 +270,11 @@ def set_retention_times(file: str):
 #################################################################################################
 class FullExperiment:
 
-    def __init__(self, time_points: list, differential: bool, replications: int):
+    def __init__(self, time_points: list, differential: bool, free_replications: int, complex_replications: int):
         self.runs = {}
         self._is_differential = differential
-        self._num_replications = replications
+        self._num_free_replications = free_replications
+        self._num_complex_replications = complex_replications
         self._time_points = time_points
         self._peptides = []
         self._output_files = {}
@@ -292,35 +293,41 @@ class FullExperiment:
             self.averages[time] = []
         self.protein = parse_protein(CON.PROTEIN_SEQUENCE_FILE)
 
+    def get_num_replications(self, is_complex: bool):
+        if is_complex:
+            return self._num_complex_replications
+        else:
+            return self._num_free_replications
+
     def add_runs(self, time):
         count = 0
-        for replication in range(self._num_replications):
+        for replication in range(self._num_free_replications):
             self.add_run(time, False, replication, count)
             count += 1
         if self._is_differential:
-            for replication in range(self._num_replications):
+            for replication in range(self._num_complex_replications):
                 self.add_run(time, True, replication, count)
                 count += 1
 
     def read_runs(self):
         for time in self._time_points:
-            complexity = False
-            for replication in range(self._num_replications):
-                self.read_run(time, complexity, replication)
+            is_complex = False
+            for replication in range(self._num_free_replications):
+                self.read_run(time, is_complex, replication)
             if self._is_differential:
-                complexity = True
-                for replication in range(self._num_replications):
-                    self.read_run(time, complexity, replication)
+                is_complex = True
+                for replication in range(self._num_complex_replications):
+                    self.read_run(time, is_complex, replication)
 
     def add_file_names(self):
         for time in self._time_points:
-            complexity = False
-            for replication in range(self._num_replications):
-                self.add_file(time, complexity, replication)
+            is_complex = False
+            for replication in range(self._num_free_replications):
+                self.add_file(time, is_complex, replication)
             if self._is_differential:
-                complexity = True
-                for replication in range(self._num_replications):
-                    self.add_file(time, complexity, replication)
+                is_complex = True
+                for replication in range(self._num_complex_replications):
+                    self.add_file(time, is_complex, replication)
 
     def get_file(self, index: int):
         return self._file_names[index]
@@ -387,7 +394,8 @@ class FullExperiment:
     def average_replications(self, averages, deviations, pep, index, complexity):
         for time in self._time_points:
             replications = []
-            for replication in range(self._num_replications):
+            num_replications = self.get_num_replications(complexity)
+            for replication in range(num_replications):
                 uptake = self.runs[time][complexity][replication][index]
                 if uptake != -1:
                     replications.append(uptake)
@@ -451,7 +459,7 @@ class FullExperiment:
             row["HDX time (min)"] = time
             row["Uptake (D)"] = pep.get_mass_shift()
             uptakes = []
-            for replication in range(self._num_replications):
+            for replication in range(self.get_num_replications(complexity)):
                 uptakes.append(self.get_uptake(time, complexity, replication)[index])
             stdev = np.std(uptakes, ddof=1)
             row["Uptake SD (D)"] = stdev
@@ -489,7 +497,8 @@ class FullExperiment:
                 len(self._peptides),
                 "",
                 "",
-                self._num_replications,
+                "{}: {} {}: {}".format(CON.CONDITION1, self.get_num_replications(True),
+                                       CON.CONDITION2, self.get_num_replications(False)),
                 "",
                 ""]
         data = {"Data Set": labels, CON.CONDITION1: info, CON.CONDITION2: info}
@@ -506,8 +515,8 @@ class FullExperiment:
 
     # confidence is between 0 and 1, df is
     def calculate_confidence_limit(self, time, fractional, confidence):
-        n = self._num_replications
-        df = n - 1
+        n = self._num_complex_replications + self._num_free_replications
+        df = n - 2
         if fractional:
             deviations = self.fractional_deviations_by_time[time]
         else:
@@ -548,8 +557,8 @@ class FullExperiment:
                 if is_fractional:
                     difference /= length
                 self.difference_deviations[time].append(difference)
-            high_confidence = self.calculate_confidence_limit(time, is_fractional, CON.WOODS_PLOT_CONFIDENCE_2)
-            low_confidence = self.calculate_confidence_limit(time, is_fractional, CON.WOODS_PLOT_CONFIDENCE_1)
+            high_confidence = self.calculate_confidence_limit(time, is_fractional, CON.WOODS_PLOT_CONFIDENCE_HIGH)
+            low_confidence = self.calculate_confidence_limit(time, is_fractional, CON.WOODS_PLOT_CONFIDENCE_LOW)
             output_table = {
                 'Sequence': [],
                 'Start': [],
@@ -709,7 +718,7 @@ class ExperimentalRun:
                     retention_time *= CON.MINUTES_TO_SECONDS
                     count += 1
                     if count % 200 == 0 or count == 1 or count == total:
-                        print(count, "/", total)
+                        print(count, "/", total, "scans")
                     self.process_scan(scan)
         self.set_tuple_dictionary(self.sliding_window(retention_time))
 
@@ -1053,11 +1062,15 @@ def get_is_differential():
     return is_differential
 
 
-def get_num_replications():
+def get_num_replications_input(is_complex: bool):
     num_replications = 0
+    if is_complex:
+        condition = CON.CONDITION2
+    else:
+        condition = CON.CONDITION1
     while num_replications < 1:
         try:
-            num_replications = int(input("How many replications? "))
+            num_replications = int(input("How many {} replications? ".format(condition)))
         except ValueError:
             pass
         if num_replications < 1:
@@ -1078,7 +1091,11 @@ def main():
     # Get User Input
     time_points = get_time_points()
     is_differential = get_is_differential()
-    num_replications = get_num_replications()
+    num_free_replications = get_num_replications_input(False)
+    if is_differential:
+        num_complex_replications = get_num_replications_input(True)
+    else:
+        num_complex_replications = 0
     print()
     menu_input = None
     while menu_input != 'q':
@@ -1090,14 +1107,14 @@ def main():
         if menu_input == '1':
             start_time = datetime.now()
             # Perform peak matching and generate output
-            experiment = FullExperiment(time_points, is_differential, num_replications)
+            experiment = FullExperiment(time_points, is_differential, num_free_replications, num_complex_replications)
             experiment.add_file_names()
             for time in time_points:
                 experiment.add_runs(time)
             print("Total Time Elapsed:", datetime.now() - start_time)
         if menu_input == '2':
             print("Generating Output files")
-            experiment = FullExperiment(time_points, is_differential, num_replications)
+            experiment = FullExperiment(time_points, is_differential, num_free_replications, num_complex_replications)
             experiment.read_runs()
             experiment.generate_output()
             print("\nSuccess!\n")

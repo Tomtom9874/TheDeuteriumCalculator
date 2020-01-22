@@ -26,7 +26,8 @@ DEUTERIUM_FRACTION = 0.833  # The fraction of D2O used in the experiment. (1)
 CONDITION1 = "Free"  # This will be used in single condition experiments
 CONDITION2 = "Complex"
 # Step 2 Parameters
-WOODS_PLOT_CONFIDENCE = 0.99  # Use to calculate confidence interval for differential woods plot (0-1)
+WOODS_PLOT_CONFIDENCE_2 = 0.99  # Use to calculate confidence interval for differential woods plot (0-1)
+WOODS_PLOT_CONFIDENCE_1 = 0.98  # Use to calculate confidence interval for differential woods plot (0-1)
 WOODS_PLOT_TITLE = r"Differential Uptake Woods' Plot"  # Title on the woods' plot
 FRACTIONAL_WOODS_PLOT_TITLE = r"Differential Fractional Uptake Woods' Plot"  # Title on the fractional woods' plot
 WOODS_PLOT_HEIGHT = 4  # Inches  (4)
