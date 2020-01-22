@@ -15,7 +15,7 @@ WOODS_TABLE_NAME = r"Outputs\BE_WoodsTable"  # No file extension
 
 # Parameters (Only change the numbers and path, not the names or text after the '#'. Defaults given in parenthesis.)
 # Step 1 Parameters
-NOISE_LIMIT = 10000  # All individual peaks with less than this intensity ignored (10000)
+NOISE_LIMIT = 20000  # All individual peaks with less than this intensity ignored (10000)
 PPM_MATCH_TOLERANCE = 10  # Peaks with less difference than this value matched to sequence (10)
 SLIDING_WINDOW_PPM_TOLERANCE = 1  # Peaks with less difference than this value combined within each sliding window (1)
 SLIDING_WINDOW_SIZE = 90  # width of sliding window in seconds, should be integer divisible by SLIDE_FRACTION (60)

@@ -3,7 +3,7 @@ import pandas as pd
 import csv
 from scipy.optimize import curve_fit
 from scipy import stats
-import PARAMETERS_BE as CON
+import PARAMETERS_PARE as CON
 from pyteomics import mzml
 from datetime import datetime
 from os import path
@@ -103,8 +103,10 @@ def check_parameters():
         raise ValueError("RETENTION_TOLERANCE must be a number over 10, greater than 30 recommended.")
     if CON.RETENTION_TOLERANCE < 30:
         warnings.warn("A retention tolerance of greater than 30s is recommended")
-    if not 0 < CON.WOODS_PLOT_CONFIDENCE < 1:
-        raise ValueError("Woods' Plot Confidence must be between 0 and 1")
+    if not 0 < CON.WOODS_PLOT_CONFIDENCE_1 < 1:
+        raise ValueError("Woods' Plot Confidence 1 must be between 0 and 1")
+    if not 0 < CON.WOODS_PLOT_CONFIDENCE_2 < 1:
+        raise ValueError("Woods' Plot Confidence 2 must be between 0 and 1")
 
 
 def check_extension(string, extension):
@@ -503,8 +505,8 @@ class FullExperiment:
             self.generate_summary_table()
 
     # confidence is between 0 and 1, df is
-    def calculate_confidence_limit(self, time, fractional):
-        n = self._num_replications * 2
+    def calculate_confidence_limit(self, time, fractional, confidence):
+        n = self._num_replications
         df = n - 1
         if fractional:
             deviations = self.fractional_deviations_by_time[time]
@@ -514,7 +516,7 @@ class FullExperiment:
             raise ValueError("add deviations before calculating confidence limit.")
         differences = self.difference_deviations[time]
         stdev = np.std(differences, ddof=1)
-        alpha = 1 - CON.WOODS_PLOT_CONFIDENCE
+        alpha = 1 - confidence
         critical_value = stats.t.ppf(1 - (alpha / 2), df)
         standard_error = stdev / n ** 0.5
         return standard_error * critical_value
@@ -526,11 +528,12 @@ class FullExperiment:
         plt.xlabel("Sequence")
         plt.ylabel("Relative Uptake (Da)")
         plt.tight_layout()
-        maroon = '#cc0000'
+        plt.xlim(0, len(self.protein))
+        maroon = 'k'
+        gray = '#D3D3D3'
         if is_fractional:
             plt.ylabel("Relative Fractional Uptake")
         for time in self._time_points:
-            plt.plot((0, len(self.protein)), (0, 0), 'k:')
             df = pd.read_csv(CON.RECOMMENDATION_TABLE_1 + ".csv", header=[0, 1])
             time_col = str(time) + " min"
 
@@ -542,9 +545,8 @@ class FullExperiment:
                 if is_fractional:
                     difference /= length
                 self.difference_deviations[time].append(difference)
-            confidence = self.calculate_confidence_limit(time, is_fractional)
-            plt.plot((0, len(self.protein)), (confidence, confidence), 'r')
-            plt.plot((0, len(self.protein)), (-confidence, -confidence), 'r')
+            confidence = self.calculate_confidence_limit(time, is_fractional, CON.WOODS_PLOT_CONFIDENCE_2)
+            low_confidence = self.calculate_confidence_limit(time, is_fractional, CON.WOODS_PLOT_CONFIDENCE_1)
             output = {
                 'Sequence': [],
                 'Start': [],
@@ -563,9 +565,9 @@ class FullExperiment:
                 if is_fractional:
                     difference /= sequence_to_max_deuterium(sequence)
                 if abs(difference) > confidence:
-                    line_color = maroon
+                    line_color = 'r'
                 else:
-                    line_color = 'k'
+                    line_color = gray
                 y = (difference, difference)
                 plt.plot(x, y, line_color)
                 output['Sequence'].append(sequence)
@@ -577,6 +579,11 @@ class FullExperiment:
                     output['Significant'].append("Yes")
                 else:
                     output['Significant'].append("No")
+            plt.plot((0, len(self.protein)), (0, 0), 'k:')
+            plt.plot((0, len(self.protein)), (confidence, confidence), maroon)
+            plt.plot((0, len(self.protein)), (-confidence, -confidence), maroon)
+            plt.plot((0, len(self.protein)), (low_confidence, low_confidence), '--', color=maroon)
+            plt.plot((0, len(self.protein)), (-low_confidence, -low_confidence),  '--', color=maroon)
             data_frame = pd.DataFrame(data=output)
             table_file_name = CON.WOODS_TABLE_NAME
             if is_fractional:
