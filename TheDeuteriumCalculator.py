@@ -3,7 +3,7 @@ import pandas as pd
 import csv
 from scipy.optimize import curve_fit
 from scipy import stats
-import PARAMETERS_PARE as CON
+import PARAMETERS as CON
 from pyteomics import mzml
 from datetime import datetime
 from os import path
@@ -92,6 +92,10 @@ def check_parameters():
         raise NameError("IDENTIFICATION_CSV_FILE must be a .csv, fix and restart the program.")
     if not check_extension(CON.PROTEIN_SEQUENCE_FILE, "txt"):
         raise NameError("PROTEIN_SEQUENCE_FILE must be a .txt, fix and restart the program.")
+    input_files = [CON.IDENTIFICATION_MZML_FILE, CON.IDENTIFICATION_CSV_FILE, CON.PROTEIN_SEQUENCE_FILE]
+    for file in input_files:
+        if not path.exists(file):
+            raise NameError("The following file path is incorrect: {}".format(file))
     if CON.PPM_MATCH_TOLERANCE > 100:
         warnings.warn(("PPM_MATCH_TOLERANCE is set to {}; this is high".format(CON.PPM_MATCH_TOLERANCE)))
     if CON.SLIDING_WINDOW_PPM_TOLERANCE > 10:
@@ -350,8 +354,10 @@ class FullExperiment:
         file = ""
         while not path.exists(file) or not check_extension(file, ".mzml"):
             file = get_path_input()
+            if not check_extension(file, ".mzml"):
+                print("Must be a '.mzML' file")
             if not path.exists(file):
-                print("Not a valid path name.")
+                print("Path does not exist.")
         if file in self._file_names:
             warnings.warn("This file has already been added, if this is an error please restart the program.")
         self._file_names.append(file)
@@ -1087,39 +1093,43 @@ def show_menu():
 
 ##############################################################################
 def main():
-    check_parameters()
-    # Get User Input
-    time_points = get_time_points()
-    is_differential = get_is_differential()
-    num_free_replications = get_num_replications_input(False)
-    if is_differential:
-        num_complex_replications = get_num_replications_input(True)
-    else:
-        num_complex_replications = 0
-    print()
-    menu_input = None
-    while menu_input != 'q':
-        show_menu()
-        try:
-            menu_input = input().strip()[0]
-        except IndexError:
-            pass
-        if menu_input == '1':
-            start_time = datetime.now()
-            # Perform peak matching and generate output
-            experiment = FullExperiment(time_points, is_differential, num_free_replications, num_complex_replications)
-            experiment.add_file_names()
-            for time in time_points:
-                experiment.add_runs(time)
-            print("Total Time Elapsed:", datetime.now() - start_time)
-        if menu_input == '2':
-            print("Generating Output files")
-            experiment = FullExperiment(time_points, is_differential, num_free_replications, num_complex_replications)
-            experiment.read_runs()
-            experiment.generate_output()
-            print("\nSuccess!\n")
-        if menu_input == '3':
-            quit()
+    try:
+        check_parameters()
+        # Get User Input
+        time_points = get_time_points()
+        is_differential = get_is_differential()
+        num_free_replications = get_num_replications_input(False)
+        if is_differential:
+            num_complex_replications = get_num_replications_input(True)
+        else:
+            num_complex_replications = 0
+        print()
+        menu_input = None
+        while menu_input != 'q':
+            show_menu()
+            try:
+                menu_input = input().strip()[0]
+            except IndexError:
+                pass
+            if menu_input == '1':
+                start_time = datetime.now()
+                # Perform peak matching and generate output
+                experiment = FullExperiment(time_points, is_differential, num_free_replications, num_complex_replications)
+                experiment.add_file_names()
+                for time in time_points:
+                    experiment.add_runs(time)
+                print("Total Time Elapsed:", datetime.now() - start_time)
+            if menu_input == '2':
+                print("Generating Output files")
+                experiment = FullExperiment(time_points, is_differential, num_free_replications, num_complex_replications)
+                experiment.read_runs()
+                experiment.generate_output()
+                print("\nSuccess!\n")
+            if menu_input == '3':
+                quit()
+    except AttributeError:
+        print("ERROR: The parameter file seems to be damaged. Please re-download from the source. "
+              "Ensure you do not alter the names of variables")
 
 
 if __name__ == '__main__':

@@ -1,10 +1,10 @@
-# Input Files (Only change the path, not the names or text after the '#'.)
-IDENTIFICATION_MZML_FILE = r"C:\Users\Tom\PycharmProjects\TheDeuteriumCalculator\mzMLFiles\IDRun.mzML"  # must be .mzML
+# Input Files (Only change the path, not the names or text after the '#' leave the r before the quotes.)
+IDENTIFICATION_MZML_FILE = r"C:\Users\Tom\PycharmProjects\TheDeuteriumCalculator\PAmzML\IDRun.mzML"  # must be .mzML
 IDENTIFICATION_CSV_FILE = r"C:\Users\Tom\PycharmProjects\TheDeuteriumCalculator\Input.csv"  # Must be .csv
 PROTEIN_SEQUENCE_FILE = r"C:\Users\Tom\PycharmProjects\TheDeuteriumCalculator\Protein.txt"  # Must be .txt
 
 
-# Output Files (Only change the path, not the names or text after the '#'.)
+# Output Files (Only change the path, not the names or text after the '#' leave the r before the quotes.)
 FULL_HDX_OUTPUT = r"Outputs\HdxOutput"  # No file extension
 RECOMMENDATION_TABLE_1 = r"Outputs\Recommendation_Table_1"  # No file extension
 RECOMMENDATION_TABLE_2 = r"Outputs\Recommendation_Table_2"  # No file extension
@@ -26,8 +26,8 @@ DEUTERIUM_FRACTION = 0.833  # The fraction of D2O used in the experiment. (1)
 CONDITION1 = "Free"  # This will be used in single condition experiments
 CONDITION2 = "Complex"
 # Step 2 Parameters
-WOODS_PLOT_CONFIDENCE_2 = 0.99  # Use to calculate confidence interval for differential woods plot (0-1)
-WOODS_PLOT_CONFIDENCE_1 = 0.98  # Use to calculate confidence interval for differential woods plot (0-1)
+WOODS_PLOT_CONFIDENCE_HIGH = 0.99  # Use to calculate confidence interval for differential woods plot (0-1)
+WOODS_PLOT_CONFIDENCE_LOW = 0.98  # Use to calculate confidence interval for differential woods plot (0-1)
 WOODS_PLOT_TITLE = r"Differential Uptake Woods' Plot"  # Title on the woods' plot
 FRACTIONAL_WOODS_PLOT_TITLE = r"Differential Fractional Uptake Woods' Plot"  # Title on the fractional woods' plot
 WOODS_PLOT_HEIGHT = 4  # Inches  (4)
