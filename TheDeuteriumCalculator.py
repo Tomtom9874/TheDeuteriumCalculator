@@ -392,7 +392,7 @@ class FullExperiment:
     def update_headers(self, top_header, bottom_header, header_name):
         top_header.append(header_name)
         for time in self._time_points:
-            bottom_header.append(str(time) + " min")
+            bottom_header.append(str(time) + " s")
             top_header.append("")
         top_header.pop()
     # Contains multiple subroutines that generate each type of output
@@ -462,7 +462,7 @@ class FullExperiment:
             start, end = pep.get_rt_start_end()
             average_rt = (start + end) / 2
             row["Retention time (min)"] = average_rt
-            row["HDX time (min)"] = time
+            row["HDX time (s)"] = time
             row["Uptake (D)"] = pep.get_mass_shift()
             uptakes = []
             for replication in range(self.get_num_replications(complexity)):
@@ -474,7 +474,7 @@ class FullExperiment:
 
     def generate_recommendation_table_2(self):
         header = ["Protein state", "Sequence", "Start", "End", "Peptide mass (Da)", "Retention time (min)",
-                  "HDX time (min)", "Uptake (D)", "Uptake SD (D)"]
+                  "HDX time (s)", "Uptake (D)", "Uptake SD (D)"]
         df = pd.DataFrame(columns=header)
         for time in self._time_points:
             df = self.generate_rows(df, time, False)
@@ -553,7 +553,7 @@ class FullExperiment:
         # Generates a plot for each time point
         for time in self._time_points:
             df = pd.read_csv(CON.RECOMMENDATION_TABLE_1 + ".csv", header=[0, 1])
-            time_col = str(time) + " min"
+            time_col = str(time) + " s"
             # Plots each peptide
             for _, row in df.iterrows():
                 free_deviation = row["Uptake error (SD) - " + CON.CONDITION1 + " (D)"][time_col]
